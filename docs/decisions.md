@@ -23,7 +23,7 @@ Decisions made before the build started, with the reason for each.
 3. Every gold model has dbt tests, and `dbt docs` with lineage is published.
 4. The README shows the architecture, both links and a GIF of the game.
 5. Every layer and design choice can be explained without AI.
-6. A LinkedIn post with a 1–2 minute demo video and links.
+6. A LinkedIn post with a short video and links (changed to the introduction video, see below).
 
 ## Changes
 
@@ -41,6 +41,19 @@ without depending on a frozen tool.
 
 **2026-11-20: six weeks of simulated history loaded** (2026-10-09 to 2026-11-18), so every
 topic and level has enough answers for the dashboard.
+
+**2026-11-20: simulator made more realistic, and the simulated history reloaded.** Each carry
+or borrow now makes a sum harder, and the 6–9 times tables are harder than 2, 5 and 10 (centred,
+so each level's average is unchanged). Without this the times-tables chart was flat and told no
+story. Because the change alters the random sequence, a re-run would have created new event IDs
+next to the old rows, so all `source = 'simulated'` rows were deleted from bronze and the days
+were loaded again. This is the one deliberate exception to "bronze is never changed": the rows
+were generated, not received, and the simulator recreates them exactly. Real rows were untouched.
+
+**2026-11-20: introduction video instead of a recorded demo.** A 40-second square video made in
+code with Remotion (`video/`), so no one has to appear on camera. The local disk had too little
+space for Remotion and a headless Chrome, so the `video` workflow renders it on GitHub's servers
+and also exports the GIF in the README.
 
 ## Out of scope for v1
 
