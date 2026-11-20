@@ -67,3 +67,5 @@ See [dbt/README.md](dbt/README.md) for the models and tests.
 ## Design decisions
 
 Every choice and the reason for it: [docs/decisions.md](docs/decisions.md).
+Short answers to the obvious questions ("isn't a browser writing to Postgres unsafe?"):
+[docs/faq.md](docs/faq.md).

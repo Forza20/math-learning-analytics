@@ -75,9 +75,56 @@ def pick_level(player: Player, rng: random.Random) -> int:
     return rng.choices(LEVELS, weights=weights)[0]
 
 
+# Extra difficulty per factor in a times table. 2, 5 and 10 are learnt first;
+# 6-9 are the classic hard ones.
+FACTOR_DIFFICULTY = {1: 0.00, 2: 0.00, 3: 0.04, 4: 0.04, 5: 0.00,
+                     6: 0.08, 7: 0.11, 8: 0.11, 9: 0.08, 10: 0.00}
+
+
+def carries(a: int, b: int, subtract: bool) -> int:
+    """Number of columns that need a carry (addition) or a borrow (subtraction)."""
+    count, carry = 0, 0
+    while a or b:
+        x, y = a % 10, b % 10
+        if subtract:
+            carry = 1 if x - carry < y else 0
+        else:
+            carry = 1 if x + y + carry >= 10 else 0
+        count += carry
+        a, b = a // 10, b // 10
+    return count
+
+
+def _table_difficulty(a: int, b: int) -> float:
+    hard, easy = sorted((FACTOR_DIFFICULTY.get(a, 0.0), FACTOR_DIFFICULTY.get(b, 0.0)), reverse=True)
+    return hard + 0.5 * easy
+
+
+# Average table difficulty at level 1, so centring keeps each level's overall difficulty.
+_MUL_L1_MEAN = sum(_table_difficulty(a, b) for a in range(2, 11) for b in range(1, 11)) / 90
+_DIV_L1_MEAN = sum(FACTOR_DIFFICULTY[d] for d in range(2, 11)) / 9
+
+
+def question_difficulty(q: Question) -> float:
+    """How much harder this exact question is than others at its level.
+
+    Carrying and borrowing always add difficulty, so levels with bigger numbers get
+    harder. Times tables are centred on the level average: 7 x 8 is harder and 2 x 5
+    easier, but level 1 as a whole stays as hard as before.
+    """
+    if q.topic in ("addition", "subtraction"):
+        return 0.06 * carries(q.a, q.b, q.topic == "subtraction")
+    if q.topic == "multiplication" and q.level == 1:
+        return _table_difficulty(q.a, q.b) - _MUL_L1_MEAN
+    if q.topic == "division" and q.level == 1:
+        return FACTOR_DIFFICULTY.get(q.b, 0.0) - _DIV_L1_MEAN
+    return 0.0
+
+
 def chance_correct(player: Player, q: Question, index: int) -> float:
-    p = (player.skill + 0.22 + player.topic_bonus[q.topic]
+    p = (player.skill + 0.27 + player.topic_bonus[q.topic]
          - TOPIC_DIFFICULTY[q.topic] - LEVEL_DIFFICULTY[q.level]
+         - question_difficulty(q)
          - 0.01 * (index - 1))  # small fatigue effect within a round
     return min(max(p, 0.05), 0.98)
 

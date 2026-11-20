@@ -7,7 +7,7 @@ import pytest
 
 from errors import ERROR_WEIGHTS, carry_borrow, make_wrong_answer, reversed_digits
 from questions import LEVELS, TOPICS, Question, make_question
-from simulate import COLUMNS, simulate_day
+from simulate import COLUMNS, carries, question_difficulty, simulate_day
 
 OPS = {
     "addition": lambda a, b: a + b,
@@ -54,6 +54,25 @@ def test_wrong_answers_are_wrong_and_valid(topic):
             seen.add(error_type)
     # Every error type configured for the topic shows up.
     assert seen == set(ERROR_WEIGHTS[topic])
+
+
+def test_carries():
+    assert carries(47, 38, subtract=False) == 1
+    assert carries(999, 1, subtract=False) == 3
+    assert carries(23, 14, subtract=False) == 0
+    assert carries(52, 17, subtract=True) == 1
+    assert carries(100, 1, subtract=True) == 2
+    assert carries(58, 23, subtract=True) == 0
+
+
+def test_hard_tables_and_carrying_are_harder():
+    def q(topic, a, b, level=1):
+        answer = {"addition": a + b, "subtraction": a - b, "multiplication": a * b, "division": a // b}[topic]
+        return Question(topic, level, a, b, answer)
+
+    assert question_difficulty(q("multiplication", 7, 8)) > question_difficulty(q("multiplication", 2, 5))
+    assert question_difficulty(q("division", 56, 8)) > question_difficulty(q("division", 50, 5))
+    assert question_difficulty(q("addition", 47, 38)) > question_difficulty(q("addition", 23, 14)) == 0
 
 
 def test_same_date_gives_same_events():

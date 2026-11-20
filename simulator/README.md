@@ -23,6 +23,8 @@ python simulator/simulate.py --dry-run --out sample.csv
 
 - **Players** get a skill level, a per-topic strength, a speed, a persistence and a language (70% Danish).
 - **Chance of a correct answer** falls with topic (division is hardest), level and a small fatigue effect within a round.
+  Within a level, the exact question matters too: each carry or borrow makes a sum harder, and
+  the 6–9 times tables are harder than 2, 5 and 10 (centred, so the level's average stays the same).
 - **Wrong answers** follow an error type, weighted per topic:
 
   | Error type | Example | Topics |
