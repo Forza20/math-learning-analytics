@@ -1,0 +1,41 @@
+name: video
+
+# Renders the introduction video (video/) on GitHub's servers and uploads the
+# MP4 plus one still per scene as an artifact. Started by hand.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: video
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: video/package-lock.json
+      - name: Install fonts used in the video
+        working-directory: .
+        run: sudo apt-get update -q && sudo apt-get install -y -q fonts-inter fonts-cascadia-code
+      - run: npm ci
+      - name: Type-check
+        run: npx tsc
+      - name: Render one still per scene
+        run: |
+          mkdir -p out
+          for f in 90 300 430 640 820 1020 1190; do
+            npx remotion still IntroVideo "out/still-$f.png" --frame=$f
+          done
+      - name: Render video
+        run: npx remotion render IntroVideo out/intro.mp4 --crf=20
+      - uses: actions/upload-artifact@v4
+        with:
+          name: intro-video
+          path: video/out/

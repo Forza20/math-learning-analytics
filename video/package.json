@@ -1,0 +1,22 @@
+{
+  "name": "math-trail-intro-video",
+  "version": "1.0.0",
+  "private": true,
+  "description": "40-second introduction video for Math Learning Analytics, built with Remotion",
+  "scripts": {
+    "dev": "remotion studio",
+    "render": "remotion render IntroVideo out/intro.mp4 --crf=20",
+    "stills": "remotion still IntroVideo out/still.png",
+    "typecheck": "tsc"
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.242",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "remotion": "4.0.242"
+  },
+  "devDependencies": {
+    "@types/react": "18.3.12",
+    "typescript": "5.6.3"
+  }
+}
