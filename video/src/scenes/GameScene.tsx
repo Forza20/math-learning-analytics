@@ -54,9 +54,10 @@ const EventCard: React.FC<{ step: Step; appearAt: number; offset: number }> = ({
       }}
     >
       <div style={{ color: colors.muted }}>{"{"}</div>
-      {step.event.map((line) => (
+      {step.event.map((line, i) => (
         <div key={line} style={{ paddingLeft: 18 }}>
-          {line},
+          {line}
+          {i < step.event.length - 1 ? "," : ""}
         </div>
       ))}
       <div style={{ color: colors.muted }}>{"}"}</div>
