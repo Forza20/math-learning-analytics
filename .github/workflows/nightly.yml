@@ -25,6 +25,7 @@ jobs:
       - run: pip install -r requirements.txt
       - name: Check connection
         run: dbt debug --project-dir dbt
-      # Week 2: python simulator/simulate.py
+      - name: Simulate yesterday's players
+        run: python simulator/simulate.py
       # Week 3: dbt build --project-dir dbt
       # Week 4: build Evidence and deploy to GitHub Pages

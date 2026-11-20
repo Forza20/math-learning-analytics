@@ -43,8 +43,10 @@ See [0001_bronze_answer_events.sql](supabase/migrations/0001_bronze_answer_event
 ```bash
 python -m venv .venv
 source .venv/bin/activate        # Windows: .venv\Scripts\activate
-pip install -r requirements.txt
+pip install -r requirements-dev.txt
 cp .env.example .env             # fill in Supabase connection details
+pytest                           # simulator tests
+python simulator/simulate.py --dry-run
 dbt debug --project-dir dbt --profiles-dir dbt
 ```
 

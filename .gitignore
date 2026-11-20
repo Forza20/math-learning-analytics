@@ -6,6 +6,10 @@
 # Python
 __pycache__/
 *.pyc
+.pytest_cache/
+# Simulator --out samples (dbt seeds live in dbt/seeds and are kept)
+/*.csv
+simulator/*.csv
 .venv/
 venv/
 
