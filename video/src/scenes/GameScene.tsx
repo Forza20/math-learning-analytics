@@ -21,7 +21,7 @@ const STEPS: Step[] = [
     feedbackAt: 62,
     correct: false,
     answer: 56,
-    event: ['"topic": "multiplication"', '"operand_a": 7, "operand_b": 8', '"given_answer": "54"', '"response_ms": 4210'],
+    event: ['"topic": "multiplication"', '"operand_a": 7', '"operand_b": 8', '"given_answer": "54"', '"response_ms": 4210'],
   },
   {
     question: "47 + 38 = ?",
@@ -30,7 +30,7 @@ const STEPS: Step[] = [
     feedbackAt: 150,
     correct: true,
     answer: 85,
-    event: ['"topic": "addition"', '"operand_a": 47, "operand_b": 38', '"given_answer": "85"', '"response_ms": 3180'],
+    event: ['"topic": "addition"', '"operand_a": 47', '"operand_b": 38', '"given_answer": "85"', '"response_ms": 3180'],
   },
 ];
 const SWITCH_AT = 108;
@@ -41,8 +41,8 @@ const EventCard: React.FC<{ step: Step; appearAt: number; offset: number }> = ({
     <div
       style={{
         fontFamily: monoFamily,
-        fontSize: 21,
-        lineHeight: 1.5,
+        fontSize: 20,
+        lineHeight: 1.45,
         background: "#0b1220",
         border: `2px solid ${colors.cardBorder}`,
         borderRadius: 16,

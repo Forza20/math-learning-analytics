@@ -46,7 +46,9 @@ export const IntroScene: React.FC = () => {
             transform: `translateY(${interpolate(line2, [0, 1], [30, 0])}px)`,
           }}
         >
-          …and the data pipeline behind it.
+          …and the data pipeline
+          <br />
+          behind it.
         </div>
       </AbsoluteFill>
 
