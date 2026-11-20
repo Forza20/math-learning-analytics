@@ -5,6 +5,7 @@ config-version: 2
 profile: math_learning_analytics
 
 model-paths: ["models"]
+seed-paths: ["seeds"]
 macro-paths: ["macros"]
 test-paths: ["tests"]
 
@@ -27,3 +28,14 @@ models:
     gold:
       +schema: gold
       +materialized: table
+
+# Small reference tables kept in the repo. Loaded into silver, used by gold dimensions.
+seeds:
+  math_learning_analytics:
+    +schema: silver
+    exercise_levels:
+      +column_types:
+        level: smallint
+    error_types:
+      +column_types:
+        rule_order: smallint

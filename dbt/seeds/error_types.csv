@@ -1,0 +1,8 @@
+error_type,rule_order,label,description,example
+off_by_one,1,Off by one,Differs from the correct answer by 1,56 → 57
+carry_borrow,2,Carry or borrow,Column by column without carrying or borrowing,47 + 38 → 75
+reversed_digits,3,Reversed digits,The digits of the answer in reverse order,56 → 65
+wrong_operation,4,Wrong operation,Another operation on the same numbers,7 × 8 → 15
+table_neighbor,5,Times table neighbour,One factor off by one,7 × 8 → 49
+implausible,6,Implausible,More digits than the answer and over twice its size,956 → 4547
+other,7,Other,None of the rules above match,4 → 7

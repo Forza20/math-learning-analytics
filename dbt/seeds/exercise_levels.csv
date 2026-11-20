@@ -1,0 +1,13 @@
+exercise_key,topic,level,topic_label,symbol,level_label,description
+addition_1,addition,1,Addition,+,Easy,Within 100
+addition_2,addition,2,Addition,+,Medium,Within 500
+addition_3,addition,3,Addition,+,Hard,Within 1000
+subtraction_1,subtraction,1,Subtraction,−,Easy,Within 100
+subtraction_2,subtraction,2,Subtraction,−,Medium,Within 500
+subtraction_3,subtraction,3,Subtraction,−,Hard,Within 1000
+multiplication_1,multiplication,1,Multiplication,×,Easy,Times tables 2–10
+multiplication_2,multiplication,2,Multiplication,×,Medium,2-digit × 1-digit (11–20 × 2–9)
+multiplication_3,multiplication,3,Multiplication,×,Hard,2-digit × 2-digit (11–30 × 11–20)
+division_1,division,1,Division,÷,Easy,Inverse times tables (÷ 2–10)
+division_2,division,2,Division,÷,Medium,÷ 1-digit with answers 11–25
+division_3,division,3,Division,÷,Hard,÷ 2-digit (11–20) with answers 2–20

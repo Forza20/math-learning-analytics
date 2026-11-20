@@ -1,0 +1,136 @@
+version: 2
+
+models:
+  # ---- Dimensions ----------------------------------------------------------
+  - name: dim_date
+    description: One row per Copenhagen calendar day, from the first answer to today.
+    columns:
+      - name: date_key
+        data_tests: [not_null, unique]
+
+  - name: dim_exercise
+    description: One row per topic and level, with dashboard labels.
+    columns:
+      - name: exercise_key
+        data_tests: [not_null, unique]
+
+  - name: dim_error_type
+    description: One row per error type, in the order silver applies the rules.
+    columns:
+      - name: error_type
+        data_tests: [not_null, unique]
+      - name: rule_order
+        data_tests: [not_null, unique]
+
+  # ---- Facts ---------------------------------------------------------------
+  - name: fct_answers
+    description: >
+      One row per answer. is_analysable is true for current game rules
+      (rules_version 2) without quality flags; the marts use only those rows.
+    columns:
+      - name: event_id
+        data_tests: [not_null, unique]
+      - name: date_key
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_date')
+                field: date_key
+      - name: exercise_key
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_exercise')
+                field: exercise_key
+      - name: error_type
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_error_type')
+                field: error_type
+      - name: session_id
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('fct_sessions')
+                field: session_id
+      - name: times_table
+        description: Larger factor for level 1 multiplication, divisor for level 1 division, else NULL.
+
+  - name: fct_sessions
+    description: One row per round.
+    columns:
+      - name: session_id
+        data_tests: [not_null, unique]
+      - name: date_key
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_date')
+                field: date_key
+      - name: exercise_key
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_exercise')
+                field: exercise_key
+
+  # ---- Marts for the dashboard ---------------------------------------------
+  - name: mart_difficulty
+    description: Correct, wrong and skip rates and answer times per source, topic and level.
+    columns:
+      - name: correct_rate
+        data_tests: [not_null]
+
+  - name: mart_errors
+    description: Wrong answers per error type, with each type's share of the wrong answers for that source, topic and level.
+
+  - name: mart_times_tables
+    description: Correct rate per times table for level 1 multiplication and division.
+    columns:
+      - name: times_table
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [2, 3, 4, 5, 6, 7, 8, 9, 10]
+                quote: false
+
+  - name: mart_dropoff
+    description: Share of rounds that reach each question, and where players stop.
+    columns:
+      - name: reach_rate
+        data_tests: [not_null]
+
+  - name: mart_daily_activity
+    description: Sessions, answers and rates per day and source, including days without play.
+
+unit_tests:
+  - name: mart_dropoff_counts_reach_and_quits
+    description: Two rounds, one completed and one stopped after question 3.
+    model: mart_dropoff
+    overrides:
+      vars:
+        questions_per_round: 10
+    given:
+      - input: ref('fct_sessions')
+        rows:
+          - {session_id: '10000000-0000-4000-8000-000000000000', source: simulated, exercise_key: addition_1, topic: addition, level: 1, last_question_index: 10, quit_after_question: null, is_analysable: true}
+          - {session_id: '20000000-0000-4000-8000-000000000000', source: simulated, exercise_key: addition_1, topic: addition, level: 1, last_question_index: 3, quit_after_question: 3, is_analysable: true}
+      - input: ref('fct_answers')
+        rows: []
+    expect:
+      rows:
+        - {question_index: 1, sessions_started: 2, sessions_reaching: 2, reach_rate: '1.000', sessions_quit_after: 0}
+        - {question_index: 3, sessions_started: 2, sessions_reaching: 2, reach_rate: '1.000', sessions_quit_after: 1}
+        - {question_index: 4, sessions_started: 2, sessions_reaching: 1, reach_rate: '0.500', sessions_quit_after: 0}
+        - {question_index: 10, sessions_started: 2, sessions_reaching: 1, reach_rate: '0.500', sessions_quit_after: 0}
+        - {question_index: 2, sessions_started: 2, sessions_reaching: 2, reach_rate: '1.000', sessions_quit_after: 0}
+        - {question_index: 5, sessions_started: 2, sessions_reaching: 1, reach_rate: '0.500', sessions_quit_after: 0}
+        - {question_index: 6, sessions_started: 2, sessions_reaching: 1, reach_rate: '0.500', sessions_quit_after: 0}
+        - {question_index: 7, sessions_started: 2, sessions_reaching: 1, reach_rate: '0.500', sessions_quit_after: 0}
+        - {question_index: 8, sessions_started: 2, sessions_reaching: 1, reach_rate: '0.500', sessions_quit_after: 0}
+        - {question_index: 9, sessions_started: 2, sessions_reaching: 1, reach_rate: '0.500', sessions_quit_after: 0}

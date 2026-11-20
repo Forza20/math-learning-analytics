@@ -34,7 +34,8 @@ totals as (
         count(*) filter (where outcome = 'skipped') as skipped_answers,
         max(question_index) as last_question_index,
         round(avg(response_ms))::int as avg_response_ms,
-        bool_or(is_too_fast) as has_too_fast_answers
+        bool_or(is_too_fast) as has_too_fast_answers,
+        bool_or(is_clock_skewed) as has_clock_skew
     from answers
     group by session_id
 
@@ -61,6 +62,7 @@ select
     -- The question the player gave up after, if they stopped early.
     case when t.last_question_index < {{ var("questions_per_round") }} then t.last_question_index end as quit_after_question,
     t.avg_response_ms,
-    t.has_too_fast_answers
+    t.has_too_fast_answers,
+    t.has_clock_skew
 from first_answer f
 join totals t using (session_id)

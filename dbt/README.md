@@ -5,7 +5,10 @@ Transforms `bronze.answer_events` into the `silver` and `gold` schemas in Supaba
 ```powershell
 .\dbt.ps1 build                    # from the repo root: loads .env, runs models and tests
 .\dbt.ps1 build --select silver
+.\dbt.ps1 build --select gold
 ```
+
+Seeds (`seeds/`) are loaded into `silver` and feed the gold dimensions.
 
 ## Silver
 
@@ -38,9 +41,37 @@ answers of the intended count. The simulator's `random` guesses land in `implaus
 **Rules version.** The game's levels changed for ages 8–12 at `var('rules_v2_from')`.
 Earlier events have `rules_version = 1` and must not be compared by level with later ones.
 
+## Gold
+
+A star schema plus small marts that the dashboard reads directly. All are tables.
+
+```
+                 dim_date
+                    │ date_key
+dim_exercise ── fct_answers ── dim_error_type
+   exercise_key     │ session_id
+                fct_sessions ── dim_date, dim_exercise
+```
+
+| Model | Grain | Notes |
+|---|---|---|
+| `dim_date` | Copenhagen day | From the first answer to today |
+| `dim_exercise` | topic and level | Labels and descriptions, from seed `exercise_levels.csv` |
+| `dim_error_type` | error type | Labels, examples, rule order, from seed `error_types.csv` |
+| `fct_answers` | answer | `is_analysable` = rules version 2 and no quality flags; `times_table` for level 1 × and ÷ |
+| `fct_sessions` | round | Same `is_analysable` rule |
+| `mart_difficulty` | source, topic, level | Correct, wrong and skip rates; median and p90 answer time |
+| `mart_errors` | source, topic, level, error type | Count and share of wrong answers |
+| `mart_times_tables` | source, topic, table 2–10 | Correct rate and median time per times table |
+| `mart_dropoff` | source, topic, level, question 1–10 | Share of rounds reaching each question, quits, accuracy by question |
+| `mart_daily_activity` | day, source | Sessions, answers, rates; days without play included |
+
+Marts use analysable rows only. The facts keep every row, so excluded data stays traceable.
+
 ## Tests
 
-- Generic tests on keys, accepted values and the answers → sessions relationship.
-- Unit tests (`_silver.yml`) for the error rules, deduplication and `rules_version`, on fixed input rows.
+- Generic tests on keys, accepted values and every fact → dimension relationship.
+- Unit tests for the error rules, deduplication and `rules_version` (`_silver.yml`), and the drop-off counts (`_gold.yml`), on fixed input rows.
 - `assert_error_type_only_on_wrong_answers`, `assert_one_answer_per_question`.
+- `assert_gold_marts_reconcile`: mart totals must equal the facts they summarise.
 - `assert_no_spam_bursts` (warning): busy hours of real answers, or real sessions with machine-speed answers.
