@@ -1,0 +1,453 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Math Learning Analytics</title>
+<meta name="description" content="How children aged 8–12 do in the Math Trail game: difficulty, mistakes, times tables and drop-off. Built from a nightly dbt pipeline.">
+<style>
+  :root {
+    color-scheme: light;
+    --page: #f9f9f7;
+    --surface: #fcfcfb;
+    --ink: #0b0b0b;
+    --ink-2: #52514e;
+    --muted: #898781;
+    --grid: #e1e0d9;
+    --axis: #c3c2b7;
+    --border: rgba(11, 11, 11, 0.10);
+    --accent: #2a78d6;
+    /* Categorical slots, fixed order (validated: scripts/validate_palette.js) */
+    --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100;
+    --s5: #e87ba4; --s6: #008300; --s7: #6250d6;
+    /* Ordinal ramp for levels Easy -> Hard */
+    --o1: #86b6ef; --o2: #2a78d6; --o3: #104281;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) {
+      color-scheme: dark;
+      --page: #0d0d0d; --surface: #1a1a19; --ink: #f0efec; --ink-2: #c3c2b7;
+      --muted: #898781; --grid: #2c2c2a; --axis: #383835; --border: rgba(255, 255, 255, 0.10);
+      --accent: #3987e5;
+      --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500;
+      --s5: #d55181; --s6: #0ca30c; --s7: #9085e9;
+      --o1: #184f95; --o2: #3987e5; --o3: #9ec5f4;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --page: #0d0d0d; --surface: #1a1a19; --ink: #f0efec; --ink-2: #c3c2b7;
+    --muted: #898781; --grid: #2c2c2a; --axis: #383835; --border: rgba(255, 255, 255, 0.10);
+    --accent: #3987e5;
+    --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500;
+    --s5: #d55181; --s6: #0ca30c; --s7: #9085e9;
+    --o1: #184f95; --o2: #3987e5; --o3: #9ec5f4;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--page); color: var(--ink);
+    font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  main { max-width: 1120px; margin: 0 auto; padding: 32px 16px 64px; }
+  a { color: var(--accent); }
+  header h1 { font-size: 1.75rem; margin: 0 0 4px; }
+  header p { margin: 0; color: var(--ink-2); max-width: 70ch; }
+  .links { display: flex; flex-wrap: wrap; gap: 16px; margin: 12px 0 0; font-weight: 600; }
+  .meta { color: var(--muted); font-size: .8125rem; margin-top: 8px; }
+
+  .filters { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin: 28px 0 16px; }
+  .filters .label { color: var(--ink-2); font-weight: 600; }
+  .seg { display: inline-flex; border: 1px solid var(--border); border-radius: 10px; padding: 3px; background: var(--surface); }
+  .seg button {
+    border: 0; background: transparent; color: var(--ink-2); font: inherit; font-weight: 600;
+    padding: 6px 14px; border-radius: 7px; cursor: pointer;
+  }
+  .seg button[aria-pressed="true"] { background: var(--accent); color: #fff; }
+  .filters .note { color: var(--muted); font-size: .8125rem; flex-basis: 100%; }
+
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 16px; }
+  .tile { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; }
+  .tile .k { color: var(--ink-2); font-size: .8125rem; }
+  .tile .v { font-size: 1.75rem; font-weight: 700; line-height: 1.2; }
+
+  .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 18px; min-width: 0; }
+  .card.wide { grid-column: 1 / -1; }
+  .card h2 { font-size: 1rem; margin: 0 0 2px; }
+  .card .sub { color: var(--ink-2); font-size: .8125rem; margin: 0 0 12px; }
+  .chart { position: relative; height: 280px; }
+  .chart.tall { height: 320px; }
+  .empty { display: flex; align-items: center; justify-content: center; height: 100%; color: var(--muted); text-align: center; padding: 16px; }
+  details { margin-top: 12px; }
+  details summary { cursor: pointer; color: var(--ink-2); font-size: .8125rem; font-weight: 600; }
+  .table-wrap { overflow-x: auto; margin-top: 8px; }
+  table { border-collapse: collapse; width: 100%; font-size: .8125rem; font-variant-numeric: tabular-nums; }
+  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--grid); white-space: nowrap; }
+  th { color: var(--ink-2); font-weight: 600; }
+  td.num, th.num { text-align: right; }
+
+  .how { margin-top: 32px; color: var(--ink-2); }
+  .how h2 { color: var(--ink); font-size: 1.125rem; }
+  .flow { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 12px 0; }
+  .flow span { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 6px 10px; font-size: .8125rem; color: var(--ink); }
+  .flow i { color: var(--muted); font-style: normal; }
+
+  @media (max-width: 760px) {
+    .grid { grid-template-columns: minmax(0, 1fr); }
+    main { padding-top: 20px; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Math Learning Analytics</h1>
+    <p>How children aged 8–12 do in <a href="../">Math Trail</a>, a small math game.
+      Every answer flows through a nightly data pipeline into this page.</p>
+    <div class="links">
+      <a href="../">Play the game</a>
+      <a href="../dbt-docs/">Data model and lineage (dbt docs)</a>
+      <a href="https://github.com/Forza20/math-learning-analytics">Source code</a>
+    </div>
+    <div class="meta" id="meta"></div>
+  </header>
+
+  <div class="filters" role="group" aria-label="Filters">
+    <span class="label">Players</span>
+    <div class="seg" id="sourceSeg">
+      <button data-source="simulated" aria-pressed="true">Simulated</button>
+      <button data-source="real" aria-pressed="false">Real</button>
+    </div>
+    <span class="note">Simulated players are generated every night with realistic skills and mistakes.
+      Real players are anonymous visitors to the game: no name, age, login or IP address is stored.</span>
+  </div>
+
+  <section class="kpis" id="kpis" aria-label="Key figures"></section>
+
+  <section class="grid">
+    <article class="card">
+      <h2>Correct answers by topic and level</h2>
+      <p class="sub">Share of answers that were correct</p>
+      <div class="chart"><canvas id="cDifficulty" role="img" aria-label="Bar chart of correct answer rate by topic and level"></canvas></div>
+      <details><summary>Show table</summary><div class="table-wrap" id="tDifficulty"></div></details>
+    </article>
+
+    <article class="card">
+      <h2>Time to answer</h2>
+      <p class="sub">Median seconds per answer, skips left out</p>
+      <div class="chart"><canvas id="cTime" role="img" aria-label="Bar chart of median answer time by topic and level"></canvas></div>
+      <details><summary>Show table</summary><div class="table-wrap" id="tTime"></div></details>
+    </article>
+
+    <article class="card wide">
+      <h2>What kind of mistakes</h2>
+      <p class="sub">Share of wrong answers by error type, all levels. Each wrong answer gets the first matching rule.</p>
+      <div class="chart"><canvas id="cErrors" role="img" aria-label="Stacked bar chart of error types per topic"></canvas></div>
+      <details><summary>Show table</summary><div class="table-wrap" id="tErrors"></div></details>
+    </article>
+
+    <article class="card">
+      <h2>Times tables</h2>
+      <p class="sub">Correct answers per table, Easy level</p>
+      <div class="chart"><canvas id="cTables" role="img" aria-label="Line chart of correct rate per times table"></canvas></div>
+      <details><summary>Show table</summary><div class="table-wrap" id="tTables"></div></details>
+    </article>
+
+    <article class="card">
+      <h2>How far players get</h2>
+      <p class="sub">Share of rounds that reach each question</p>
+      <div class="chart"><canvas id="cDropoff" role="img" aria-label="Line chart of rounds reaching each question"></canvas></div>
+      <details><summary>Show table</summary><div class="table-wrap" id="tDropoff"></div></details>
+    </article>
+
+    <article class="card wide">
+      <h2>Rounds per day</h2>
+      <p class="sub">Copenhagen time</p>
+      <div class="chart"><canvas id="cDaily" role="img" aria-label="Bar chart of rounds played per day"></canvas></div>
+      <details><summary>Show table</summary><div class="table-wrap" id="tDaily"></div></details>
+    </article>
+  </section>
+
+  <section class="how">
+    <h2>How it works</h2>
+    <div class="flow">
+      <span>Game (browser)</span><i>→</i><span>Supabase bronze</span><i>→</i>
+      <span>dbt silver: clean, deduplicate, classify mistakes</span><i>→</i>
+      <span>dbt gold: star schema and marts</span><i>→</i><span>this page</span>
+    </div>
+    <p>A GitHub Actions run every night simulates the previous day's players, rebuilds and tests
+      every model with dbt, and exports the gold marts to this static page. No database key reaches the browser.</p>
+    <div class="table-wrap" id="tErrorTypes"></div>
+  </section>
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"
+        integrity="sha384-bs/nf9FbdNouRbMiFcrcZfLXYPKiPaGVGplVbv7dLGECccEXDW+S3zjqSKR5ZEaD"
+        crossorigin="anonymous"></script>
+<script src="data.js"></script>
+<script>
+"use strict";
+
+const D = window.DASHBOARD_DATA;
+const TOPICS = ["addition", "subtraction", "multiplication", "division"];
+const TOPIC_LABEL = { addition: "Addition", subtraction: "Subtraction", multiplication: "Multiplication", division: "Division" };
+const LEVEL_LABEL = { 1: "Easy", 2: "Medium", 3: "Hard" };
+const state = { source: "simulated" };
+const charts = {};
+
+// ---- Helpers --------------------------------------------------------------
+const $ = (id) => document.getElementById(id);
+const css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+const pct = (x) => x == null ? "–" : Math.round(x * 100) + "%";
+const num = (x) => x == null ? "–" : Number(x).toLocaleString("en-GB");
+const secs = (ms) => ms == null ? "–" : (ms / 1000).toFixed(1) + " s";
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const bySource = (rows) => rows.filter((r) => r.source === state.source);
+
+function table(el, headers, rows) {
+  const head = headers.map((h) => `<th class="${h.num ? "num" : ""}">${esc(h.label)}</th>`).join("");
+  const body = rows.map((r) => "<tr>" + r.map((v, i) =>
+    `<td class="${headers[i].num ? "num" : ""}">${esc(v)}</td>`).join("") + "</tr>").join("");
+  $(el).innerHTML = rows.length ? `<table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>` : "";
+}
+
+function showEmpty(canvasId, empty) {
+  const box = $(canvasId).parentElement;
+  let msg = box.querySelector(".empty");
+  if (empty && !msg) {
+    msg = document.createElement("div");
+    msg.className = "empty";
+    msg.textContent = "No data yet for these players. Play a round of the game, and it shows up here after the next nightly run.";
+    box.appendChild(msg);
+  }
+  if (!empty && msg) msg.remove();
+  $(canvasId).style.display = empty ? "none" : "";
+}
+
+function draw(id, config) {
+  if (charts[id]) charts[id].destroy();
+  charts[id] = new Chart($(id), config);
+}
+
+// Shared chart styling: thin marks, hairline grid, tokens from CSS.
+function baseOptions({ yPercent = false, yTitle = "", stacked = false, horizontal = false, legend = true } = {}) {
+  const ink2 = css("--ink-2"), muted = css("--muted"), grid = css("--grid"), axis = css("--axis");
+  const valueAxis = {
+    beginAtZero: true,
+    max: yPercent ? 1 : undefined,
+    stacked,
+    grid: { color: grid }, border: { color: axis },
+    ticks: { color: muted, callback: (v) => yPercent ? Math.round(v * 100) + "%" : v },
+    title: { display: !!yTitle, text: yTitle, color: muted }
+  };
+  const catAxis = { stacked, grid: { display: false }, border: { color: axis }, ticks: { color: ink2 } };
+  return {
+    responsive: true, maintainAspectRatio: false, animation: false,
+    indexAxis: horizontal ? "y" : "x",
+    interaction: { mode: "index", intersect: false },
+    scales: horizontal ? { x: valueAxis, y: catAxis } : { x: catAxis, y: valueAxis },
+    plugins: {
+      legend: { display: legend, position: "bottom", labels: { color: ink2, boxWidth: 12, boxHeight: 12, useBorderRadius: true, borderRadius: 3 } },
+      tooltip: {
+        callbacks: {
+          label: (ctx) => {
+            const v = horizontal ? ctx.parsed.x : ctx.parsed.y;
+            return `${ctx.dataset.label}: ${yPercent ? pct(v) : v}`;
+          }
+        }
+      }
+    }
+  };
+}
+
+const barStyle = (color) => ({
+  backgroundColor: color, borderColor: css("--surface"), borderWidth: { top: 0, right: 2, bottom: 0, left: 2 },
+  borderRadius: { topLeft: 4, topRight: 4 }, borderSkipped: "start", maxBarThickness: 28
+});
+const lineStyle = (color) => ({
+  borderColor: color, backgroundColor: color, borderWidth: 2, tension: 0.25,
+  pointRadius: 4, pointHoverRadius: 6, pointBorderColor: css("--surface"), pointBorderWidth: 2
+});
+
+// ---- Sections -------------------------------------------------------------
+function renderKpis() {
+  const k = D.kpis.find((r) => r.source === state.source);
+  const tiles = [
+    ["Answers", num(k?.answers)],
+    ["Rounds", num(k?.sessions)],
+    ["Correct", pct(k?.correct_rate)],
+    ["Rounds finished", pct(k?.completion_rate)],
+    ["Days with play", num(k?.active_days)]
+  ];
+  $("kpis").innerHTML = tiles.map(([label, value]) =>
+    `<div class="tile"><div class="k">${esc(label)}</div><div class="v">${esc(value)}</div></div>`).join("");
+}
+
+function renderDifficulty() {
+  const rows = bySource(D.difficulty);
+  showEmpty("cDifficulty", !rows.length);
+  showEmpty("cTime", !rows.length);
+  const get = (topic, level, field) => rows.find((r) => r.topic === topic && r.level === level)?.[field] ?? null;
+  const labels = TOPICS.map((t) => TOPIC_LABEL[t]);
+
+  draw("cDifficulty", {
+    type: "bar",
+    data: { labels, datasets: [1, 2, 3].map((lv) => ({
+      label: LEVEL_LABEL[lv], data: TOPICS.map((t) => get(t, lv, "correct_rate")), ...barStyle(css("--o" + lv)) })) },
+    options: baseOptions({ yPercent: true })
+  });
+  draw("cTime", {
+    type: "bar",
+    data: { labels, datasets: [1, 2, 3].map((lv) => ({
+      label: LEVEL_LABEL[lv],
+      data: TOPICS.map((t) => { const ms = get(t, lv, "median_response_ms"); return ms == null ? null : +(ms / 1000).toFixed(1); }),
+      ...barStyle(css("--o" + lv)) })) },
+    options: baseOptions({ yTitle: "seconds" })
+  });
+
+  table("tDifficulty",
+    [{ label: "Topic" }, { label: "Level" }, { label: "Answers", num: 1 }, { label: "Correct", num: 1 }, { label: "Wrong", num: 1 }, { label: "Skipped", num: 1 }],
+    rows.map((r) => [TOPIC_LABEL[r.topic], LEVEL_LABEL[r.level] + " · " + r.description, num(r.answers), pct(r.correct_rate), pct(r.wrong_rate), pct(r.skip_rate)]));
+  table("tTime",
+    [{ label: "Topic" }, { label: "Level" }, { label: "Median", num: 1 }, { label: "Slowest 10% from", num: 1 }],
+    rows.map((r) => [TOPIC_LABEL[r.topic], LEVEL_LABEL[r.level], secs(r.median_response_ms), secs(r.p90_response_ms)]));
+}
+
+function renderErrors() {
+  const rows = bySource(D.errors);
+  showEmpty("cErrors", !rows.length);
+  const types = D.error_types;
+  const totals = {};
+  rows.forEach((r) => {
+    totals[r.topic] ??= {};
+    totals[r.topic][r.error_type] = (totals[r.topic][r.error_type] || 0) + r.wrong_answers;
+  });
+  const wrongPerTopic = Object.fromEntries(TOPICS.map((t) => [t, Object.values(totals[t] || {}).reduce((a, b) => a + b, 0)]));
+  const share = (t, e) => wrongPerTopic[t] ? (totals[t]?.[e] || 0) / wrongPerTopic[t] : null;
+
+  draw("cErrors", {
+    type: "bar",
+    data: {
+      labels: TOPICS.map((t) => TOPIC_LABEL[t]),
+      datasets: types.map((e, i) => ({
+        label: e.label, data: TOPICS.map((t) => share(t, e.error_type)),
+        backgroundColor: css("--s" + (i + 1)), borderColor: css("--surface"), borderWidth: 2, borderSkipped: false, maxBarThickness: 34
+      }))
+    },
+    options: (() => {
+      const o = baseOptions({ yPercent: true, stacked: true, horizontal: true });
+      o.interaction = { mode: "nearest", axis: "y", intersect: true };
+      return o;
+    })()
+  });
+
+  table("tErrors",
+    [{ label: "Topic" }, { label: "Error type" }, { label: "Wrong answers", num: 1 }, { label: "Share", num: 1 }],
+    TOPICS.flatMap((t) => types
+      .filter((e) => totals[t]?.[e.error_type])
+      .map((e) => [TOPIC_LABEL[t], e.label, num(totals[t][e.error_type]), pct(share(t, e.error_type))])));
+}
+
+function renderTables() {
+  const rows = bySource(D.times_tables);
+  showEmpty("cTables", !rows.length);
+  const tables = [2, 3, 4, 5, 6, 7, 8, 9, 10];
+  const series = [["multiplication", "--s1"], ["division", "--s2"]];
+  draw("cTables", {
+    type: "line",
+    data: {
+      labels: tables.map((n) => n + "×"),
+      datasets: series.map(([topic, color]) => ({
+        label: TOPIC_LABEL[topic],
+        data: tables.map((n) => rows.find((r) => r.topic === topic && r.times_table === n)?.correct_rate ?? null),
+        ...lineStyle(css(color)), spanGaps: true
+      }))
+    },
+    options: baseOptions({ yPercent: true })
+  });
+  table("tTables",
+    [{ label: "Table" }, { label: "Topic" }, { label: "Answers", num: 1 }, { label: "Correct", num: 1 }, { label: "Median time", num: 1 }],
+    rows.map((r) => [r.times_table, TOPIC_LABEL[r.topic], num(r.answers), pct(r.correct_rate), secs(r.median_response_ms)]));
+}
+
+function renderDropoff() {
+  const rows = bySource(D.dropoff);
+  showEmpty("cDropoff", !rows.length);
+  const agg = {};
+  rows.forEach((r) => {
+    const key = r.topic + "|" + r.question_index;
+    agg[key] ??= { started: 0, reaching: 0, quit: 0 };
+    agg[key].started += r.sessions_started;
+    agg[key].reaching += r.sessions_reaching;
+    agg[key].quit += r.sessions_quit_after;
+  });
+  const q = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+  const reach = (t, i) => { const a = agg[t + "|" + i]; return a && a.started ? a.reaching / a.started : null; };
+  draw("cDropoff", {
+    type: "line",
+    data: {
+      labels: q.map((i) => "Q" + i),
+      datasets: TOPICS.map((t, i) => ({ label: TOPIC_LABEL[t], data: q.map((n) => reach(t, n)), ...lineStyle(css("--s" + (i + 1))) }))
+    },
+    options: (() => { const o = baseOptions({ yPercent: true }); o.scales.y.min = 0; return o; })()
+  });
+  table("tDropoff",
+    [{ label: "Question" }, ...TOPICS.map((t) => ({ label: TOPIC_LABEL[t], num: 1 }))],
+    q.map((n) => ["Q" + n, ...TOPICS.map((t) => pct(reach(t, n)))]));
+}
+
+function renderDaily() {
+  const rows = bySource(D.daily);
+  const any = rows.some((r) => r.sessions > 0);
+  showEmpty("cDaily", !any);
+  const fmt = (d) => new Date(d + "T12:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+  const o = baseOptions({ legend: false });
+  o.scales.x.ticks.maxRotation = 0;
+  o.scales.x.ticks.autoSkipPadding = 12;
+  draw("cDaily", {
+    type: "bar",
+    data: { labels: rows.map((r) => fmt(r.date_day)), datasets: [{ label: "Rounds", data: rows.map((r) => r.sessions), ...barStyle(css("--s1")), maxBarThickness: 16 }] },
+    options: o
+  });
+  table("tDaily",
+    [{ label: "Day" }, { label: "Weekday" }, { label: "Rounds", num: 1 }, { label: "Answers", num: 1 }, { label: "Correct", num: 1 }, { label: "Finished", num: 1 }],
+    rows.filter((r) => r.sessions > 0).reverse()
+      .map((r) => [r.date_day, r.weekday_name, num(r.sessions), num(r.answers), pct(r.correct_rate), pct(r.completion_rate)]));
+}
+
+function renderErrorTypes() {
+  table("tErrorTypes",
+    [{ label: "Order" }, { label: "Error type" }, { label: "Rule" }, { label: "Example" }],
+    D.error_types.map((e) => [e.rule_order, e.label, e.description, e.example]));
+}
+
+function renderAll() {
+  renderKpis();
+  renderDifficulty();
+  renderErrors();
+  renderTables();
+  renderDropoff();
+  renderDaily();
+}
+
+// ---- Start ----------------------------------------------------------------
+if (!D || typeof Chart === "undefined") {
+  document.querySelector("main").insertAdjacentHTML("beforeend",
+    '<p class="empty">The dashboard data could not be loaded. Run <code>python dashboard/export.py</code> to create data.js.</p>');
+} else {
+  Chart.defaults.font.family = 'system-ui, -apple-system, "Segoe UI", sans-serif';
+  $("meta").textContent = "Data updated " + new Date(D.generated_at).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" });
+  document.querySelectorAll("#sourceSeg button").forEach((b) => b.addEventListener("click", () => {
+    state.source = b.dataset.source;
+    document.querySelectorAll("#sourceSeg button").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+    renderAll();
+  }));
+  // Charts read colours from CSS, so redraw when the colour scheme changes.
+  window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", renderAll);
+  renderErrorTypes();
+  renderAll();
+}
+</script>
+</body>
+</html>

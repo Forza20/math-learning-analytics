@@ -6,7 +6,17 @@ into a public dashboard about learning and error patterns.
 
 The game is the data source. The pipeline is the point.
 
-> **Status:** setting up (week 1 of 4). Links to the live game and dashboard come here.
+**Live:** [Play the game](https://forza20.github.io/math-learning-analytics/) ·
+[Dashboard](https://forza20.github.io/math-learning-analytics/dashboard/) ·
+[Data model and lineage (dbt docs)](https://forza20.github.io/math-learning-analytics/dbt-docs/)
+
+## What's in it
+
+- **An event stream I designed myself**: the game sends one row per answer to Postgres. The browser may insert, nothing else.
+- **A simulator** for realistic players, with six error types, tested with `pytest` and idempotent per day.
+- **A dbt medallion**: silver deduplicates retried events and classifies every wrong answer into an error type; gold is a star schema plus marts. About 50 tests, including unit tests and a reconciliation check.
+- **A nightly GitHub Actions run** that simulates, builds, tests and publishes everything.
+- **A static dashboard** with no database access from the browser.
 
 ## Architecture
 
@@ -16,7 +26,8 @@ Python simulator ─────insert──►           │
                                           ▼  GitHub Actions (nightly)
                             dbt build: bronze → silver → gold
                                           ▼
-                            Evidence.dev build ──► GitHub Pages dashboard
+                            export gold marts ──► GitHub Pages
+                                                  (game, dashboard, dbt docs)
 ```
 
 | Layer | Tool | Folder |
@@ -26,7 +37,7 @@ Python simulator ─────insert──►           │
 | Simulated players | Python | [simulator/](simulator/) |
 | Transformations and tests | dbt Core (bronze, silver, gold) | [dbt/](dbt/) |
 | Orchestration | GitHub Actions | [.github/workflows/](.github/workflows/) |
-| Dashboard | Evidence.dev | [dashboard/](dashboard/) |
+| Dashboard | Static page, Chart.js, data exported nightly | [dashboard/](dashboard/) |
 
 ## Privacy
 

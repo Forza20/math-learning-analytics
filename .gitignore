@@ -29,3 +29,6 @@ dashboard/build/
 .DS_Store
 Thumbs.db
 .vscode/
+
+# Dashboard data, generated nightly by dashboard/export.py
+dashboard/data.js
