@@ -2,12 +2,11 @@ name: nightly
 
 # Simulates yesterday's players, builds and tests every dbt model, then
 # publishes the game, the dashboard and dbt docs to GitHub Pages.
-# Manual only for now. Enable the schedule once the repo secrets exist,
-# so the 7-green-nights success criterion counts from a working pipeline.
+# Runs every night, and can also be started by hand.
 on:
   workflow_dispatch:
-  # schedule:
-  #   - cron: "0 3 * * *"  # 03:00 UTC, 04:00/05:00 in Copenhagen
+  schedule:
+    - cron: "0 3 * * *"  # 03:00 UTC, 04:00/05:00 in Copenhagen
 
 permissions:
   contents: read
