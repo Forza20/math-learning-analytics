@@ -65,7 +65,7 @@
   .progress { height: 8px; background: var(--line); border-radius: 99px; overflow: hidden; margin-bottom: 16px; }
   .progress > div { height: 100%; width: 0; background: var(--accent); transition: width .3s; }
   .meta { display: flex; justify-content: space-between; color: var(--muted); font-size: .875rem; margin-bottom: 8px; }
-  .question { font-size: clamp(2.5rem, 12vw, 4rem); font-weight: 800; text-align: center; margin: 12px 0 20px; font-variant-numeric: tabular-nums; }
+  .question { font-size: clamp(2rem, 9vw, 3.5rem); font-weight: 800; text-align: center; margin: 12px 0 20px; font-variant-numeric: tabular-nums; }
   form.answer { display: flex; gap: 8px; }
   form.answer input {
     flex: 1; min-width: 0; font: inherit; font-size: 1.75rem; font-weight: 700; text-align: center;
@@ -181,8 +181,21 @@ const TEXT = {
 
 const TOPICS = ["addition", "subtraction", "multiplication", "division"];
 const SYMBOL = { addition: "+", subtraction: "−", multiplication: "×", division: "÷" };
-// Times tables used per level, for multiplication and division.
-const TABLES = { 1: [1, 2, 5, 10], 2: [3, 4, 6], 3: [7, 8, 9] };
+// Difficulty per level, aimed at ages 8–12.
+// Addition/subtraction: numbers within this limit.
+const RANGE = { 1: 100, 2: 500, 3: 1000 };
+// Multiplication: [min, max] for each factor.
+const FACTORS = {
+  1: [[2, 10], [1, 10]],    // times tables
+  2: [[11, 20], [2, 9]],    // 2-digit × 1-digit
+  3: [[11, 30], [11, 20]]   // 2-digit × 2-digit
+};
+// Division: [min, max] for divisor and quotient. Answers are always whole.
+const DIVISION = {
+  1: [[2, 10], [1, 10]],    // inverse times tables
+  2: [[2, 9], [11, 25]],    // 2- and 3-digit ÷ 1-digit
+  3: [[11, 20], [2, 20]]    // ÷ 2-digit
+};
 
 // ---- State --------------------------------------------------------------
 const state = {
@@ -194,7 +207,6 @@ const state = {
 // ---- Helpers ------------------------------------------------------------
 const $ = (id) => document.getElementById(id);
 const rand = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
-const pick = (arr) => arr[rand(0, arr.length - 1)];
 const t = () => TEXT[state.lang];
 
 function uuid() {
@@ -208,25 +220,27 @@ function uuid() {
 // Returns { a, b, answer }. All values are whole numbers >= 0.
 function makeQuestion(topic, level) {
   if (topic === "addition") {
-    const max = { 1: 10, 2: 20, 3: 100 }[level];
-    const a = rand(0, max - 1);
+    const max = RANGE[level];
+    const a = rand(Math.floor(max / 10), max - 1);
     const b = rand(1, max - a);
     return { a, b, answer: a + b };
   }
   if (topic === "subtraction") {
-    const max = { 1: 10, 2: 20, 3: 100 }[level];
-    const a = rand(1, max);
-    const b = rand(0, a);
+    const max = RANGE[level];
+    const a = rand(Math.floor(max / 10), max);
+    const b = rand(1, a);
     return { a, b, answer: a - b };
   }
   if (topic === "multiplication") {
-    const a = pick(TABLES[level]);
-    const b = rand(1, 10);
+    const [fa, fb] = FACTORS[level];
+    const a = rand(fa[0], fa[1]);
+    const b = rand(fb[0], fb[1]);
     return Math.random() < 0.5 ? { a, b, answer: a * b } : { a: b, b: a, answer: a * b };
   }
-  // division: the inverse of a times table, always a whole answer
-  const divisor = pick(TABLES[level]);
-  const quotient = rand(1, 10);
+  // division: built backwards from divisor × quotient, so the answer is whole
+  const [fd, fq] = DIVISION[level];
+  const divisor = rand(fd[0], fd[1]);
+  const quotient = rand(fq[0], fq[1]);
   return { a: divisor * quotient, b: divisor, answer: quotient };
 }
 

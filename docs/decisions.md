@@ -11,7 +11,7 @@ Decisions made before the build started, with the reason for each.
 | 5 | Stack | GitHub Pages, Supabase Postgres, Python, dbt Core, GitHub Actions | Free tiers; dbt is the most requested transformation tool. |
 | 6 | Dashboard | Live web dashboard | Reviewers click a link and give it 30–60 seconds; no login or install. |
 | 7 | Dashboard tool | Evidence.dev, static build on GitHub Pages | Instant load (no cold start), SQL-first, no database keys in the browser. |
-| 8 | Content | Ages 6–10; +, −, ×, ÷; 3 levels; typed answers | Typed answers let silver classify error types, not just right or wrong. |
+| 8 | Content | Ages 8–12 (changed from 6–10, see below); +, −, ×, ÷; 3 levels; typed answers | Typed answers let silver classify error types, not just right or wrong. |
 | 9 | Data | Real and simulated, anonymous session ID, insert-only RLS, CHECK constraints, spam test | Connects game and pipeline without collecting children's personal data. |
 | 10 | Done means | See below | |
 | 11 | Language | English throughout; game has a DA/EN toggle | Widest audience; toggle is cheap and adds a dimension. |
@@ -24,6 +24,14 @@ Decisions made before the build started, with the reason for each.
 4. The README shows the architecture, both links and a GIF of the game.
 5. Every layer and design choice can be explained without AI.
 6. A LinkedIn post with a 1–2 minute demo video and links.
+
+## Changes
+
+**2026-11-20: target age 6–10 changed to 8–12.** Levels now go up to numbers within 1000,
+2-digit × 2-digit multiplication and division by 2-digit numbers.
+Harder questions give more varied errors (carrying, place value) for silver to classify.
+The 20 events received before this change were played under the old levels.
+Silver must not compare them with later events by level: filter them out by `received_at`.
 
 ## Out of scope for v1
 

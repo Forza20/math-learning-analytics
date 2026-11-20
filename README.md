@@ -1,6 +1,6 @@
 # Math Learning Analytics
 
-A small math game for children aged 6–10, and the data platform behind it.
+A small math game for children aged 8–12, and the data platform behind it.
 Every answer becomes an event that flows through a tested nightly pipeline
 into a public dashboard about learning and error patterns.
 

@@ -4,18 +4,18 @@ A single `index.html` with no dependencies and no build step. Open it in a brows
 
 ## What it does
 
-- Ages 6–10. Topics: addition, subtraction, multiplication, division. 3 levels each.
+- Ages 8–12. Topics: addition, subtraction, multiplication, division. 3 levels each.
 - Rounds of 10 questions. The player types the answer, or skips.
 - DA/EN toggle. The default follows the browser language.
 - A "Behind the scenes" panel shows the events sent from this visit.
 
-| Level | Addition / subtraction | Multiplication / division tables |
-|---|---|---|
-| 1 | within 10 | 1, 2, 5, 10 |
-| 2 | within 20 | 3, 4, 6 |
-| 3 | within 100 | 7, 8, 9 |
+| Level | Addition / subtraction | Multiplication | Division |
+|---|---|---|---|
+| 1 | within 100 | times tables 2–10 | inverse times tables |
+| 2 | within 500 | 2-digit × 1-digit (11–20 × 2–9) | ÷ 1-digit, answers 11–25 |
+| 3 | within 1000 | 2-digit × 2-digit (11–30 × 11–20) | ÷ 2-digit (11–20), answers 2–20 |
 
-Division questions are always the inverse of a times table, so the answer is a whole number.
+Division questions are built backwards from divisor × answer, so the answer is always a whole number.
 
 ## Event tracking
 
