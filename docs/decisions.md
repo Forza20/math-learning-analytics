@@ -50,6 +50,13 @@ next to the old rows, so all `source = 'simulated'` rows were deleted from bronz
 were loaded again. This is the one deliberate exception to "bronze is never changed": the rows
 were generated, not received, and the simulator recreates them exactly. Real rows were untouched.
 
+**2026-11-20: the game became an installable app (PWA).** The brief said "app", which the
+first interview never pinned down: the game was a web page. A PWA makes it installable on a
+phone and playable offline, with no app store, no cost and no change to the pipeline, while a
+headhunter can still just click the link. A native app was rejected: weeks of work, a yearly
+Apple fee, store review for a children's app, and reviewers would have to install it.
+Offline answers are queued and sent later; silver's deduplication makes resends safe.
+
 **2026-11-20: introduction video instead of a recorded demo.** A 40-second square video made in
 code with Remotion (`video/`), so no one has to appear on camera. The local disk had too little
 space for Remotion and a headless Chrome, so the `video` workflow renders it on GitHub's servers

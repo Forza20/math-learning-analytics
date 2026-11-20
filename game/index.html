@@ -5,6 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Math Trail</title>
 <meta name="description" content="A small math game for children. Every answer is tracked anonymously and feeds a data pipeline.">
+<!-- Installable app (PWA) -->
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#2f6fdf">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Math Trail">
 <style>
   :root {
     --bg: #f6f4ef;
@@ -101,6 +109,8 @@
     <label class="group-label" data-t="pickLevel">Pick a level</label>
     <div class="choices" id="levels"></div>
     <button class="btn" id="startBtn" data-t="start">Start</button>
+    <button class="btn secondary hidden" id="installBtn" type="button" data-t="install" style="margin-left:8px">Install app</button>
+    <p class="privacy hidden" style="margin-top:12px" id="iosHint" data-t="iosHint"></p>
     <p class="privacy" style="margin-top:16px" data-t="privacy"></p>
   </section>
 
@@ -161,7 +171,9 @@ const TEXT = {
     skipped: "Skipped. The answer is",
     behind: "Behind the scenes",
     behindText: "Each answer is sent as an event to a database. A nightly pipeline turns the events into a dashboard. These are the events from this visit:",
-    sent: "sent", failed: "failed",
+    sent: "sent", failed: "waiting to send",
+    install: "Install app",
+    iosHint: "To install on iPhone or iPad: tap Share, then Add to Home Screen.",
     dashLink: "See what the data shows →",
     topics: { addition: "Plus", subtraction: "Minus", multiplication: "Times", division: "Divide" },
     levels: { 1: "Easy", 2: "Medium", 3: "Hard" }
@@ -176,7 +188,9 @@ const TEXT = {
     skipped: "Sprunget over. Svaret er",
     behind: "Bag kulisserne",
     behindText: "Hvert svar sendes som en hændelse til en database. En natlig pipeline gør hændelserne til et dashboard. Her er hændelserne fra dette besøg:",
-    sent: "sendt", failed: "fejlet",
+    sent: "sendt", failed: "venter på at blive sendt",
+    install: "Installér app",
+    iosHint: "Installér på iPhone eller iPad: tryk Del og derefter Føj til hjemmeskærm.",
     dashLink: "Se hvad dataene viser →",
     topics: { addition: "Plus", subtraction: "Minus", multiplication: "Gange", division: "Division" },
     levels: { 1: "Let", 2: "Mellem", 3: "Svær" }
@@ -270,29 +284,78 @@ function track(givenAnswer, responseMs) {
   send(event, 2);
 }
 
+async function post(event) {
+  const res = await fetch(SUPABASE_URL + "/rest/v1/answer_events", {
+    method: "POST",
+    keepalive: true,
+    headers: {
+      "apikey": SUPABASE_KEY,
+      "Content-Type": "application/json",
+      "Content-Profile": "bronze",   // target the bronze schema
+      "Prefer": "return=minimal"     // anon has no select right
+    },
+    body: JSON.stringify(event)
+  });
+  if (!res.ok) {
+    const err = new Error("HTTP " + res.status);
+    err.status = res.status;
+    throw err;
+  }
+}
+
 async function send(event, retriesLeft) {
   try {
-    const res = await fetch(SUPABASE_URL + "/rest/v1/answer_events", {
-      method: "POST",
-      keepalive: true,
-      headers: {
-        "apikey": SUPABASE_KEY,
-        "Content-Type": "application/json",
-        "Content-Profile": "bronze",   // target the bronze schema
-        "Prefer": "return=minimal"     // anon has no select right
-      },
-      body: JSON.stringify(event)
-    });
-    if (!res.ok) throw new Error("HTTP " + res.status);
+    await post(event);
     state.sent++;
   } catch (err) {
-    if (retriesLeft > 0) {
+    // 4xx means the database rejected the row: retrying won't help.
+    if (err.status && err.status < 500) {
+      console.warn("Event rejected:", err);
+    } else if (retriesLeft > 0) {
       setTimeout(() => send(event, retriesLeft - 1), 1500);
       return;
+    } else {
+      // Offline or server down: keep it and send it later (also when installed and offline).
+      writeQueue([...readQueue(), event]);
+      state.failed = readQueue().length;
     }
-    state.failed++;
-    console.warn("Event not sent:", err);
   }
+  renderStatus();
+}
+
+// ---- Offline queue --------------------------------------------------------
+// Answers given offline are kept in localStorage and sent when the device is
+// online again. A resend can create a duplicate if the first request actually
+// arrived; silver deduplicates per session and question, so that is safe.
+const QUEUE_KEY = "mathTrailQueue";
+
+function readQueue() {
+  try { return JSON.parse(localStorage.getItem(QUEUE_KEY)) || []; } catch (e) { return []; }
+}
+
+function writeQueue(queue) {
+  try { localStorage.setItem(QUEUE_KEY, JSON.stringify(queue.slice(-500))); } catch (e) { /* storage blocked */ }
+}
+
+let flushing = false;
+async function flushQueue() {
+  if (flushing || !navigator.onLine) return;
+  const queue = readQueue();
+  if (!queue.length) return;
+  flushing = true;
+  writeQueue([]);
+  const left = [];
+  for (const event of queue) {
+    try {
+      await post(event);
+      state.sent++;
+    } catch (err) {
+      if (!(err.status && err.status < 500)) left.push(event);
+    }
+  }
+  writeQueue([...left, ...readQueue()]);
+  state.failed = readQueue().length;
+  flushing = false;
   renderStatus();
 }
 
@@ -419,7 +482,40 @@ document.querySelectorAll("[data-lang]").forEach((b) =>
   b.addEventListener("click", () => { state.lang = b.dataset.lang; applyText(); }));
 
 state.lang = (navigator.language || "en").toLowerCase().startsWith("da") ? "da" : "en";
+state.failed = readQueue().length;
 applyText();
+
+// ---- Installable app ------------------------------------------------------
+// The service worker only works over http(s), not when index.html is opened from disk.
+if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
+  navigator.serviceWorker.register("sw.js").catch((err) => console.warn("Service worker not registered:", err));
+}
+
+const isStandalone = window.matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+let installPrompt = null;
+
+// Chrome, Edge and Android: show our own install button.
+window.addEventListener("beforeinstallprompt", (e) => {
+  e.preventDefault();
+  installPrompt = e;
+  $("installBtn").classList.remove("hidden");
+});
+$("installBtn").onclick = async () => {
+  if (!installPrompt) return;
+  installPrompt.prompt();
+  await installPrompt.userChoice;
+  installPrompt = null;
+  $("installBtn").classList.add("hidden");
+};
+window.addEventListener("appinstalled", () => $("installBtn").classList.add("hidden"));
+
+// iPhone and iPad have no install prompt: show how to do it by hand.
+const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) ||
+  (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+if (isIOS && !isStandalone) $("iosHint").classList.remove("hidden");
+
+flushQueue();
+window.addEventListener("online", flushQueue);
 </script>
 </body>
 </html>

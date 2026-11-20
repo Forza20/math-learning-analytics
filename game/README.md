@@ -29,6 +29,26 @@ Each answer or skip sends one row to `bronze.answer_events` through the Supabase
 - Stopping a round sends nothing. The last `question_index` in a session shows where the player gave up.
 - Sending never blocks the game. A failed send is retried twice.
 
+## Installable app (PWA)
+
+The game is a Progressive Web App: it can be installed on a phone, tablet or computer
+and opens full screen like an app, also without a connection.
+
+| File | Role |
+|---|---|
+| `manifest.webmanifest` | Name, colours, icons and full-screen display |
+| `sw.js` | Service worker: caches the game's own files (stale-while-revalidate). The dashboard, dbt docs and the answer events are never cached |
+| `icons/` | App icons, including a maskable icon for Android and an Apple touch icon |
+
+- **Chrome, Edge, Android:** an "Install app" button appears on the start screen.
+- **iPhone and iPad:** the start screen shows how to install by hand (Share, then Add to Home Screen).
+- **Offline answers** are kept in `localStorage` and sent when the device is online again.
+  A resend can create a duplicate if the first request did arrive; silver deduplicates per
+  session and question, so that is safe. Answers the database rejects (4xx) are dropped.
+
+When you change any cached file, bump `CACHE` in `sw.js` so installed apps fetch the new version.
+The service worker only runs over http(s), not when `index.html` is opened from disk.
+
 ## Requires
 
 `bronze` must be listed under Supabase **Project Settings > Data API > Exposed schemas**.
