@@ -27,5 +27,6 @@ jobs:
         run: dbt debug --project-dir dbt
       - name: Simulate yesterday's players
         run: python simulator/simulate.py
-      # Week 3: dbt build --project-dir dbt
+      - name: Build and test models
+        run: dbt build --project-dir dbt
       # Week 4: build Evidence and deploy to GitHub Pages

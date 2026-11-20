@@ -19,4 +19,5 @@ sources:
           - name: source
             data_tests:
               - accepted_values:
-                  values: ['real', 'simulated']
+                  arguments:
+                    values: ['real', 'simulated']

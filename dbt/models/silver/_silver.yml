@@ -1,0 +1,131 @@
+version: 2
+
+models:
+  - name: answers
+    description: >
+      One row per answered or skipped question. Deduplicated per session and
+      question, typed, and classified by outcome and error type.
+    columns:
+      - name: event_id
+        data_tests: [not_null, unique]
+      - name: session_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('sessions')
+                field: session_id
+      - name: source
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['real', 'simulated']
+      - name: rules_version
+        description: 1 for events played under the old ages 6-10 levels, 2 from var rules_v2_from.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [1, 2]
+                quote: false
+      - name: given_answer_raw
+        description: Typed input as received. NULL means skipped.
+      - name: given_answer
+        description: given_answer_raw as a number.
+      - name: outcome
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['correct', 'wrong', 'skipped']
+      - name: error_type
+        description: >
+          Set only when outcome is wrong. First matching rule wins: off_by_one,
+          carry_borrow, reversed_digits, wrong_operation, table_neighbor,
+          implausible, other.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['off_by_one', 'carry_borrow', 'reversed_digits', 'wrong_operation', 'table_neighbor', 'implausible', 'other']
+      - name: is_too_fast
+        description: Non-skip answered in under 250 ms. Likely not a human.
+      - name: is_clock_skewed
+        description: Real event whose device clock is more than an hour off the server.
+
+  - name: sessions
+    description: One row per round. A round has up to var questions_per_round questions.
+    columns:
+      - name: session_id
+        data_tests: [not_null, unique]
+      - name: answers
+        data_tests: [not_null]
+      - name: quit_after_question
+        description: Last question answered before the player stopped. NULL when the round was completed.
+
+unit_tests:
+  - name: answers_classifies_error_types
+    description: Each error rule fires on a known example, in rule order.
+    model: answers
+    given:
+      - input: source('bronze', 'answer_events')
+        format: csv
+        rows: |
+          event_id,session_id,source,language,topic,level,question_index,operand_a,operand_b,correct_answer,given_answer,response_ms,client_ts,received_at
+          00000000-0000-4000-8000-000000000001,10000000-0000-4000-8000-000000000000,real,en,addition,1,1,47,38,85,85,3000,2026-11-21 15:00:00+00,2026-11-21 15:00:01+00
+          00000000-0000-4000-8000-000000000002,10000000-0000-4000-8000-000000000000,real,en,addition,1,2,47,38,85,75,3000,2026-11-21 15:00:00+00,2026-11-21 15:00:01+00
+          00000000-0000-4000-8000-000000000003,20000000-0000-4000-8000-000000000000,real,en,subtraction,1,1,52,17,35,45,3000,2026-11-21 15:00:00+00,2026-11-21 15:00:01+00
+          00000000-0000-4000-8000-000000000004,30000000-0000-4000-8000-000000000000,real,en,multiplication,1,1,7,8,56,57,3000,2026-11-21 15:00:00+00,2026-11-21 15:00:01+00
+          00000000-0000-4000-8000-000000000005,30000000-0000-4000-8000-000000000000,real,en,multiplication,1,2,7,8,56,65,3000,2026-11-21 15:00:00+00,2026-11-21 15:00:01+00
+          00000000-0000-4000-8000-000000000006,30000000-0000-4000-8000-000000000000,real,en,multiplication,1,3,7,8,56,15,3000,2026-11-21 15:00:00+00,2026-11-21 15:00:01+00
+          00000000-0000-4000-8000-000000000007,30000000-0000-4000-8000-000000000000,real,en,multiplication,1,4,7,8,56,49,3000,2026-11-21 15:00:00+00,2026-11-21 15:00:01+00
+          00000000-0000-4000-8000-000000000008,40000000-0000-4000-8000-000000000000,real,en,addition,3,1,672,284,956,4547,3000,2026-11-21 15:00:00+00,2026-11-21 15:00:01+00
+          00000000-0000-4000-8000-000000000009,40000000-0000-4000-8000-000000000000,real,en,addition,3,2,3,1,4,7,3000,2026-11-21 15:00:00+00,2026-11-21 15:00:01+00
+          00000000-0000-4000-8000-000000000010,40000000-0000-4000-8000-000000000000,real,en,addition,3,3,239,104,343,,600,2026-11-21 15:00:00+00,2026-11-21 15:00:01+00
+    expect:
+      format: csv
+      rows: |
+        event_id,outcome,error_type
+        00000000-0000-4000-8000-000000000001,correct,
+        00000000-0000-4000-8000-000000000002,wrong,carry_borrow
+        00000000-0000-4000-8000-000000000003,wrong,carry_borrow
+        00000000-0000-4000-8000-000000000004,wrong,off_by_one
+        00000000-0000-4000-8000-000000000005,wrong,reversed_digits
+        00000000-0000-4000-8000-000000000006,wrong,wrong_operation
+        00000000-0000-4000-8000-000000000007,wrong,table_neighbor
+        00000000-0000-4000-8000-000000000008,wrong,implausible
+        00000000-0000-4000-8000-000000000009,wrong,other
+        00000000-0000-4000-8000-000000000010,skipped,
+
+  - name: answers_keeps_first_copy_of_a_retried_answer
+    description: A retried request stored twice keeps only the first received copy.
+    model: answers
+    given:
+      - input: source('bronze', 'answer_events')
+        format: csv
+        rows: |
+          event_id,session_id,source,language,topic,level,question_index,operand_a,operand_b,correct_answer,given_answer,response_ms,client_ts,received_at
+          00000000-0000-4000-8000-0000000000b2,50000000-0000-4000-8000-000000000000,real,da,addition,1,1,20,30,50,50,2500,2026-11-21 15:00:00+00,2026-11-21 15:00:04+00
+          00000000-0000-4000-8000-0000000000a1,50000000-0000-4000-8000-000000000000,real,da,addition,1,1,20,30,50,50,2500,2026-11-21 15:00:00+00,2026-11-21 15:00:01+00
+    expect:
+      format: csv
+      rows: |
+        event_id
+        00000000-0000-4000-8000-0000000000a1
+
+  - name: answers_sets_rules_version_from_received_at
+    model: answers
+    overrides:
+      vars:
+        rules_v2_from: "2026-11-20 18:04:00+00"
+    given:
+      - input: source('bronze', 'answer_events')
+        format: csv
+        rows: |
+          event_id,session_id,source,language,topic,level,question_index,operand_a,operand_b,correct_answer,given_answer,response_ms,client_ts,received_at
+          00000000-0000-4000-8000-000000000001,60000000-0000-4000-8000-000000000000,real,da,addition,1,1,4,3,7,7,4000,2026-11-20 17:55:16+00,2026-11-20 17:55:17+00
+          00000000-0000-4000-8000-000000000002,70000000-0000-4000-8000-000000000000,real,da,addition,3,1,990,9,999,999,8000,2026-11-20 18:04:43+00,2026-11-20 18:04:44+00
+    expect:
+      format: csv
+      rows: |
+        event_id,rules_version
+        00000000-0000-4000-8000-000000000001,1
+        00000000-0000-4000-8000-000000000002,2

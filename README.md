@@ -50,6 +50,9 @@ python simulator/simulate.py --dry-run
 dbt debug --project-dir dbt --profiles-dir dbt
 ```
 
+On Windows, `.\dbt.ps1 build` loads `.env` and runs dbt with the right folders.
+See [dbt/README.md](dbt/README.md) for the models and tests.
+
 ## Design decisions
 
 Every choice and the reason for it: [docs/decisions.md](docs/decisions.md).

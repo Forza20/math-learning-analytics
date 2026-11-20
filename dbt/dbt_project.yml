@@ -11,6 +11,14 @@ test-paths: ["tests"]
 target-path: target
 clean-targets: [target, dbt_packages]
 
+vars:
+  # The game's levels changed (ages 6-10 -> 8-12) just before this time.
+  # Events received earlier were played under rules_version 1.
+  rules_v2_from: "2026-11-20 18:04:00+00"
+  questions_per_round: 10
+  # Spam check: more real answers than this in one hour raises a warning.
+  spam_events_per_hour: 600
+
 models:
   math_learning_analytics:
     silver:
