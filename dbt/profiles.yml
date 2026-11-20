@@ -1,0 +1,15 @@
+# Safe to commit: every secret comes from environment variables.
+# Locally: copy .env.example to .env and load it. In CI: GitHub secrets.
+math_learning_analytics:
+  target: prod
+  outputs:
+    prod:
+      type: postgres
+      host: "{{ env_var('DBT_HOST') }}"
+      port: "{{ env_var('DBT_PORT', '5432') | int }}"
+      user: "{{ env_var('DBT_USER') }}"
+      password: "{{ env_var('DBT_PASSWORD') }}"
+      dbname: "{{ env_var('DBT_DBNAME', 'postgres') }}"
+      schema: public
+      threads: 4
+      sslmode: require

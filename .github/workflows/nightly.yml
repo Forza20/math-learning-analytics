@@ -1,0 +1,30 @@
+name: nightly
+
+# Manual only for now. Enable the schedule once the simulator and models exist,
+# so the 7-green-nights success criterion starts counting from a real pipeline.
+on:
+  workflow_dispatch:
+  # schedule:
+  #   - cron: "0 3 * * *"  # 03:00 UTC
+
+jobs:
+  pipeline:
+    runs-on: ubuntu-latest
+    env:
+      DBT_HOST: ${{ secrets.DBT_HOST }}
+      DBT_PORT: ${{ secrets.DBT_PORT }}
+      DBT_USER: ${{ secrets.DBT_USER }}
+      DBT_PASSWORD: ${{ secrets.DBT_PASSWORD }}
+      DBT_DBNAME: ${{ secrets.DBT_DBNAME }}
+      DBT_PROFILES_DIR: dbt
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+      - name: Check connection
+        run: dbt debug --project-dir dbt
+      # Week 2: python simulator/simulate.py
+      # Week 3: dbt build --project-dir dbt
+      # Week 4: build Evidence and deploy to GitHub Pages

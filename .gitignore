@@ -1,0 +1,27 @@
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# dbt
+dbt/target/
+dbt/dbt_packages/
+dbt/logs/
+logs/
+.user.yml
+
+# Node / Evidence
+node_modules/
+dashboard/.evidence/
+dashboard/build/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/

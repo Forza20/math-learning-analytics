@@ -1,0 +1,21 @@
+name: math_learning_analytics
+version: "0.1.0"
+config-version: 2
+
+profile: math_learning_analytics
+
+model-paths: ["models"]
+macro-paths: ["macros"]
+test-paths: ["tests"]
+
+target-path: target
+clean-targets: [target, dbt_packages]
+
+models:
+  math_learning_analytics:
+    silver:
+      +schema: silver
+      +materialized: view
+    gold:
+      +schema: gold
+      +materialized: table
