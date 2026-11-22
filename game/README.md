@@ -62,7 +62,7 @@ and opens full screen like an app, also without a connection.
 | File | Role |
 |---|---|
 | `manifest.webmanifest` | Name, colours, icons and full-screen display |
-| `sw.js` | Service worker: caches the game's own files (stale-while-revalidate). The dashboard, dbt docs and the answer events are never cached |
+| `sw.js` | Service worker: caches the game's own files (network first, cache when offline). The dashboard, dbt docs and the answer events are never cached |
 | `icons/` | App icons, including a maskable icon for Android and an Apple touch icon |
 
 - **Chrome, Edge, Android:** an "Install app" button appears on the start screen.
