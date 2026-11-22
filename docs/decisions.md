@@ -14,7 +14,7 @@ Decisions made before the build started, with the reason for each.
 | 8 | Content | Ages 8–12 (changed from 6–10, see below); +, −, ×, ÷; 3 levels; typed answers | Typed answers let silver classify error types, not just right or wrong. |
 | 9 | Data | Real and simulated, anonymous session ID, insert-only RLS, CHECK constraints, spam test | Connects game and pipeline without collecting children's personal data. |
 | 10 | Done means | See below | |
-| 11 | Language | English throughout; game has a DA/EN toggle | Widest audience; toggle is cheap and adds a dimension. |
+| 11 | Language | English in code, docs and dashboard; game UI Danish only (changed from a DA/EN toggle, see below) | Widest audience; toggle is cheap and adds a dimension. |
 
 ## Done means (v1)
 
@@ -72,6 +72,14 @@ The puzzles are written for the game in the worksheets' style; no worksheet cont
   Negative sequences from the worksheets were left out for that reason.
 - The simulator plays mixed rounds only from 2026-11-22, so re-running earlier days
   still recreates exactly the same rows (verified with a fingerprint of three old days).
+
+**2026-11-22: the game is Danish only, and Dansk became multiple choice.** Changes decision 11.
+- The DA/EN toggle and all English game text were removed: the game is for Danish children at
+  mellemtrin. Code, docs and the dashboard stay in English. New events always carry
+  `language = 'da'`; older events keep their language, so bronze and dbt are unchanged.
+- Dansk no longer asks the player to type the word. Each obstacle shows three spellings, one
+  right and two typical misspellings (hand-written per word, none of them a Danish word),
+  and the player picks the right one. Still game only, never sent.
 
 **2026-11-22: two subjects, Matematik and Dansk, and a dinosaur reward.** The start screen
 now offers only two subjects, the two the game is built around for mellemtrin.

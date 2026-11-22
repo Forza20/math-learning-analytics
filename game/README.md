@@ -11,9 +11,9 @@ The 🔊 button on the course turns sound off; the choice is kept on the device.
     multiplication and division, and two mixed puzzles of different task types, in random order.
     Each answer is still logged with its own `topic`, so bronze and dbt are unchanged.
     Note: `silver.sessions` takes a session's topic from its first answer.
-  - **Dansk**: spelling. The word is shown (3 / 2.5 / 2 s by level), then covered, and the player
-    types it on a Danish letter keyboard (look, cover, write). 60 words in `WORDS`, 20 per level,
-    chosen from words mellemtrin children often misspell. Spelling answers are not sent anywhere.
+  - **Dansk**: spelling. Each obstacle shows three spellings of a word, one right and two typical
+    misspellings, and the player taps the right one (keys 1–3 also work). 60 words in `WORDS`,
+    20 per level, chosen from words mellemtrin children often misspell. Spelling answers are not sent anywhere.
 - After every finished course, the end screen shows a dinosaur holding a pizza and wearing heart
   sunglasses, drawn as inline SVG in code (`dinoSvg()`).
 - Mixed puzzles (`MIXED` in `index.html`, mirrored in `simulator/questions.py`) has five task types:
@@ -31,7 +31,7 @@ The 🔊 button on the course turns sound off; the choice is kept on the device.
 - Best time per subject and level is kept in `localStorage` on the device only. It is never sent.
 - Graphics: a bright, blocky sunny-town look (flat colours, thick outlines, a block-figure runner),
   drawn with CSS and inline SVG. No images or fonts are loaded.
-- DA/EN toggle. The default follows the browser language.
+- Danish only (the English option was removed on 2026-11-22). Events still carry `language = 'da'`.
 - A "Behind the scenes" panel shows the events sent from this visit.
 
 | Level | Addition / subtraction | Multiplication | Division |

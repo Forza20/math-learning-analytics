@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="en">
+<html lang="da">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Math Trail</title>
+<title>Regnestien</title>
 <meta name="description" content="A math obstacle course for children. Every answer is tracked anonymously and feeds a data pipeline.">
 <!-- Installable app (PWA) -->
 <link rel="manifest" href="manifest.webmanifest">
@@ -75,8 +75,6 @@
   .btn.secondary { background: #fff; color: var(--ink); box-shadow: 0 4px 0 var(--line); text-shadow: none; }
   .btn.small { padding: 6px 12px; font-size: .95rem; box-shadow: 0 3px 0 var(--line); }
   .btn:disabled { opacity: .45; cursor: not-allowed; }
-  .lang { display: flex; gap: 4px; }
-  .lang .choice { padding: 6px 10px; }
   .privacy { color: var(--muted); font-size: .875rem; margin: 0; }
   .best { font-weight: 800; margin: 0 0 14px; }
   .row { display: flex; gap: 8px; justify-content: space-between; margin-top: 12px; flex-wrap: wrap; }
@@ -187,11 +185,11 @@
   .key.del { background: #ffd84d; }
   .key.ok { background: var(--accent); color: #fff; text-shadow: 0 2px 0 rgba(0,0,0,.25); }
   .key:disabled { opacity: .45; cursor: not-allowed; }
-  /* Dansk: a Danish letter keyboard, 11 keys per row */
-  .keypad.letters { grid-template-columns: repeat(11, 1fr); gap: 4px; }
-  .keypad.letters .key { min-height: 46px; font-size: 1.05rem; padding: 0; border-width: 2px; border-radius: 8px; box-shadow: 0 3px 0 var(--line); }
-  .keypad.letters .key.ok { grid-column: span 3; }
-  .spell-word { font-size: clamp(1.75rem, 9vw, 2.5rem); letter-spacing: .04em; }
+  /* Dansk: three spellings to choose from, one under the other */
+  .keypad.options { grid-template-columns: 1fr; }
+  .keypad.options .key { min-height: 58px; font-size: clamp(1.25rem, 6vw, 1.6rem); letter-spacing: .03em; }
+  .keypad.options .key.right { background: var(--good); color: #fff; opacity: 1; }
+  .keypad.options .key.wrong { background: var(--bad); color: #fff; opacity: 1; }
 
   /* ---- End screen ----------------------------------------------------- */
   .dino { display: block; width: min(220px, 60vw); height: auto; margin: 0 auto; }
@@ -215,11 +213,7 @@
 <body>
 <main>
   <header id="topbar">
-    <h1 data-t="title">Math Trail</h1>
-    <div class="lang" role="group" aria-label="Language">
-      <button class="choice" data-lang="en" aria-pressed="true">EN</button>
-      <button class="choice" data-lang="da" aria-pressed="false">DA</button>
-    </div>
+    <h1 data-t="title">Regnestien</h1>
   </header>
 
   <!-- Start screen -->
@@ -313,32 +307,8 @@ const QUESTIONS_PER_ROUND = 10;      // one obstacle per question
 const PENALTY_MS = 10000;            // each wrong or skipped answer adds 10 seconds
 
 // ---- Text ---------------------------------------------------------------
+// The game is in Danish only (2026-11-22). Events still carry language "da".
 const TEXT = {
-  en: {
-    title: "Math Trail",
-    rules: "Run the obstacle course! Answer 10 tasks to get past 10 obstacles, as fast as you can. Each wrong answer adds 10 seconds.",
-    pickTopic: "Pick a subject", pickLevel: "Pick a level", start: "Start",
-    privacy: "We save your math answers without your name, so we can see which sums are tricky. Nothing is saved about who you are. Spelling answers are not saved.",
-    check: "OK", skip: "Skip", quit: "Stop", sound: "Sound on or off",
-    yourTime: "Your time", again: "Play again", menu: "Change subject",
-    spellLook: "Look at the word…", spellWrite: "Now spell it!", del: "Delete",
-    obstacle: "Obstacle", correct: "Correct! Jump!", wrongWas: "Ouch! +10 seconds. The answer is",
-    skipped: "Skipped: +10 seconds. The answer is",
-    go: "GO!", finish: "FINISH",
-    runTime: "Run time", correctOf: "correct",
-    best: "Your best time", newBest: "New record! 🏆", noBest: "No time yet. Can you set a record?",
-    behind: "Behind the scenes",
-    behindText: "Each answer is sent as an event to a database. A nightly pipeline turns the events into a dashboard. These are the events from this visit:",
-    sent: "sent", failed: "waiting to send",
-    install: "Install app",
-    iosHint: "To install on iPhone or iPad: tap Share, then Add to Home Screen.",
-    dashLink: "See what the data shows →",
-    subjects: { math: "Matematik", danish: "Dansk" },
-    levels: { 1: "Easy", 2: "Medium", 3: "Hard" },
-    next: "What comes next?", inTotal: "in total", money: "coins",
-    units: { m: "m", cm: "cm", km: "km", kg: "kg", g: "g", h: ["hour", "hours"], min: "min", s: "sec", day: ["day", "days"] },
-    decimal: "."
-  },
   da: {
     title: "Regnestien",
     rules: "Løb forhindringsbanen! Løs 10 opgaver for at komme forbi 10 forhindringer, så hurtigt du kan. Hvert forkert svar giver 10 sekunder ekstra.",
@@ -346,7 +316,7 @@ const TEXT = {
     privacy: "Vi gemmer dine matematiksvar uden dit navn, så vi kan se, hvilke opgaver der er svære. Vi gemmer intet om, hvem du er. Stavesvar gemmes ikke.",
     check: "OK", skip: "Spring over", quit: "Stop", sound: "Lyd til eller fra",
     yourTime: "Din tid", again: "Spil igen", menu: "Skift fag",
-    spellLook: "Se på ordet…", spellWrite: "Stav det nu!", del: "Slet",
+    spellAsk: "Hvilket ord er stavet rigtigt?", del: "Slet",
     obstacle: "Forhindring", correct: "Rigtigt! Hop!", wrongWas: "Av! +10 sekunder. Svaret er",
     skipped: "Sprunget over: +10 sekunder. Svaret er",
     go: "AFSTED!", finish: "MÅL",
@@ -372,20 +342,30 @@ const SUBJECTS = ["math", "danish"];
 const SUBJECT_ICON = { math: "🔢", danish: "✏️" };
 const SYMBOL = { addition: "+", subtraction: "−", multiplication: "×", division: "÷" };
 
-// Dansk: spelling words for mellemtrin (ages 8–12), words children often misspell
-// (silent letters, hv-/hj-, double consonants, -ig/-lig endings). Game only: never sent.
+// Dansk: spelling for mellemtrin (ages 8–12). Each entry is [correct, wrong, wrong]:
+// words children often misspell (silent h/d/g, hv-/hj-, double consonants, -ig/-lig)
+// and two typical misspellings that are not Danish words. Game only: never sent.
 const WORDS = {
-  1: ["hvad", "hvor", "hvem", "hvid", "hjem", "hjælp", "mand", "kold", "sjov", "skole",
-      "vejr", "øje", "ord", "bord", "gul", "rød", "hund", "kage", "tog", "sne"],
-  2: ["først", "sidst", "morgen", "aften", "sommer", "vinter", "tirsdag", "onsdag", "lørdag", "sammen",
-      "hjerte", "dejlig", "venner", "mærkelig", "rigtig", "ligesom", "bjerg", "nøgle", "spørge", "cykel"],
-  3: ["selvfølgelig", "desværre", "egentlig", "overraskelse", "interessant", "efterhånden", "hurtigt",
-      "nødvendig", "tilfældigvis", "fødselsdag", "chokolade", "giraf", "restaurant", "ambulance",
-      "bibliotek", "tørklæde", "køleskab", "hovedpine", "pludselig", "spændende"]
+  1: [["hvad", "vad", "hvat"], ["hvor", "hvår", "hvorr"], ["hvem", "vem", "hvæm"], ["hvid", "hvit", "hviid"],
+      ["hjem", "jem", "hjæm"], ["hjælp", "jælp", "hjelp"], ["mand", "mann", "mant"], ["kold", "koll", "kolt"],
+      ["sjov", "sjou", "schov"], ["skole", "skolle", "sgole"], ["vejr", "veir", "vejjer"], ["øje", "øie", "øjje"],
+      ["ord", "or", "ordt"], ["bord", "bordt", "boord"], ["gul", "gull", "guhl"], ["rød", "rødd", "røed"],
+      ["hund", "hunnd", "hundt"], ["kage", "kaje", "kaage"], ["tog", "tou", "toug"], ["sne", "snee", "snæ"]],
+  2: [["først", "førsd", "førs"], ["sidst", "sist", "sitst"], ["morgen", "morn", "moren"], ["aften", "aftn", "avten"],
+      ["sommer", "somer", "sommar"], ["vinter", "vintter", "vindter"], ["tirsdag", "tisdag", "tirsdaw"],
+      ["onsdag", "onsda", "ondsdag"], ["lørdag", "lørda", "lørrdag"], ["sammen", "samen", "sammén"],
+      ["hjerte", "jerte", "hjærte"], ["dejlig", "dejli", "dajlig"], ["venner", "vener", "vænner"],
+      ["mærkelig", "mærkeli", "merkelig"], ["rigtig", "rigti", "rikti"], ["ligesom", "lisom", "ligsom"],
+      ["bjerg", "bjærg", "bjerr"], ["nøgle", "nøjle", "nøgel"], ["spørge", "spørre", "spøre"], ["cykel", "cykkel", "sykel"]],
+  3: [["selvfølgelig", "selfølgelig", "selvfølgli"], ["desværre", "desvære", "disværre"], ["egentlig", "egenlig", "ejentlig"],
+      ["overraskelse", "overaskelse", "overraskelsse"], ["interessant", "interresant", "intressant"],
+      ["efterhånden", "efterhånen", "efterhonden"], ["hurtigt", "hurtit", "hurtikt"], ["nødvendig", "nøvendig", "nødvenig"],
+      ["tilfældigvis", "tilfældivis", "tilfeldigvis"], ["fødselsdag", "fødselsda", "føselsdag"],
+      ["chokolade", "sjokolade", "chokoladde"], ["giraf", "giraff", "schiraf"], ["restaurant", "restaurang", "restorant"],
+      ["ambulance", "ambulanse", "ampulance"], ["bibliotek", "bibiotek", "bibliotæk"], ["tørklæde", "tørklede", "tørkæde"],
+      ["køleskab", "køleskap", "kølleskab"], ["hovedpine", "hovepine", "hoveddpine"], ["pludselig", "plutselig", "pludseli"],
+      ["spændende", "spænende", "spendende"]]
 };
-// How long the word is shown before it is covered (look, cover, write).
-const LOOK_MS = { 1: 3000, 2: 2500, 3: 2000 };
-const LETTER_ROWS = ["qwertyuiopå", "asdfghjklæø", "zxcvbnm"];
 // Difficulty per level, aimed at ages 8–12.
 // Addition/subtraction: numbers within this limit.
 const RANGE = { 1: 100, 2: 500, 3: 1000 };
@@ -404,7 +384,7 @@ const DIVISION = {
 
 // ---- State --------------------------------------------------------------
 const state = {
-  lang: "en", subject: "math", level: 1,
+  lang: "da", subject: "math", level: 1,
   sessionId: null, index: 0, score: 0, current: null, shownAt: 0, locked: true,
   typed: "", runMs: 0, penalties: 0, x: 0, run: 0, queue: [],
   log: [], sent: 0, failed: 0
@@ -553,7 +533,8 @@ const MIXED = {
 // Dansk: 10 different words of the chosen level.
 function planRound(subject, level) {
   if (subject === "danish") {
-    return shuffle(WORDS[level].slice()).slice(0, QUESTIONS_PER_ROUND).map((word) => ({ topic: "danish", word }));
+    return shuffle(WORDS[level].slice()).slice(0, QUESTIONS_PER_ROUND)
+      .map(([word, ...wrong]) => ({ topic: "danish", word, options: shuffle([word, ...wrong]) }));
   }
   const puzzles = shuffle(TASK_TYPES.slice()).slice(0, 2);
   return shuffle([
@@ -563,9 +544,9 @@ function planRound(subject, level) {
 }
 
 // Returns { topic, a, b, answer }, plus { type, text, view } for mixed puzzles
-// and { word } for spelling. Math values are whole numbers >= 0.
+// and { word, options } for spelling. Math values are whole numbers >= 0.
 function makeQuestion(plan, level) {
-  if (plan.topic === "danish") return { topic: "danish", word: plan.word, answer: plan.word };
+  if (plan.topic === "danish") return { topic: "danish", word: plan.word, options: plan.options, answer: plan.word };
   return Object.assign({ topic: plan.topic }, mathQuestion(plan.topic, level, plan.type));
 }
 
@@ -849,8 +830,6 @@ function applyText() {
   document.documentElement.lang = state.lang;
   document.title = t().title;
   document.querySelectorAll("[data-t]").forEach((el) => { el.textContent = t()[el.dataset.t]; });
-  document.querySelectorAll("[data-lang]").forEach((b) =>
-    b.setAttribute("aria-pressed", String(b.dataset.lang === state.lang)));
   $("quitBtn").setAttribute("aria-label", t().quit);
   $("skipBtn").setAttribute("aria-label", t().skip);
   $("muteBtn").setAttribute("aria-label", t().sound);
@@ -913,16 +892,14 @@ function renderQuestion(q) {
   const prompt = $("prompt");
   prompt.textContent = "";
   if (q.topic === "danish") {
-    // Look, cover, write: the word is shown first, then covered by showSpelling().
-    const hint = document.createElement("div");
-    hint.className = "hint";
-    hint.textContent = t().spellLook;
-    prompt.appendChild(hint);
-    prompt.classList.remove("hidden");
-    $("question").textContent = q.word;
-    $("question").className = "spell-word";
+    // Three spellings as buttons in the keypad; the player taps the right one.
+    $("question").textContent = t().spellAsk;
+    $("question").className = "small";
     $("suffix").textContent = "";
     $("answerBox").classList.add("hidden");
+    prompt.classList.add("hidden");
+    $("keypad").innerHTML = q.options.map((w, n) =>
+      `<button class="key" data-key="pick" data-word="${w}" aria-keyshortcuts="${n + 1}">${w}</button>`).join("");
     return;
   }
   $("question").className = "";
@@ -965,19 +942,11 @@ function renderQuestion(q) {
   $("suffix").textContent = v.suffix || "";
 }
 
-// Covers the spelling word and lets the player type it.
-function showSpelling() {
-  $("prompt").firstChild.textContent = t().spellWrite;
-  $("question").textContent = "✏️";
-  $("question").className = "";
-  $("answerBox").classList.remove("hidden");
-}
-
 function setTyped(value) {
   state.typed = value.slice(0, 16);
   $("answerBox").textContent = state.typed || "?";
   $("answerBox").classList.toggle("empty", !state.typed);
-  $("submitBtn").disabled = state.locked || state.typed === "";
+  if ($("submitBtn")) $("submitBtn").disabled = state.locked || state.typed === "";
 }
 
 function setLocked(locked) {
@@ -1033,23 +1002,16 @@ async function startRound() {
   nextQuestion();
 }
 
-async function nextQuestion() {
-  const run = state.run;
+function nextQuestion() {
   state.index++;
   state.current = makeQuestion(state.queue[state.index - 1], state.level);
   renderQuestion(state.current);
   $("feedback").textContent = "";
   $("feedback").className = "feedback";
   setTyped("");
-  renderMeta();
-  // The clock runs while the word is shown too: looking is part of the task.
-  state.shownAt = performance.now();
-  if (state.current.topic === "danish") {
-    await wait(LOOK_MS[state.level]);
-    if (run !== state.run) return;
-    showSpelling();
-  }
   setLocked(false);
+  renderMeta();
+  state.shownAt = performance.now();
 }
 
 async function answer(raw) {
@@ -1066,8 +1028,15 @@ async function answer(raw) {
   const i = state.index;
   const fb = $("feedback");
   const ok = given !== null && (spelling
-    ? given.toLowerCase() === state.current.answer
+    ? given === state.current.answer
     : /^\d+$/.test(given) && Number(given) === state.current.answer);
+  if (spelling) {
+    // Show the right spelling in green and a wrong pick in red.
+    document.querySelectorAll("#keypad [data-word]").forEach((b) => {
+      if (b.dataset.word === state.current.answer) b.classList.add("right");
+      else if (b.dataset.word === given) b.classList.add("wrong");
+    });
+  }
   if (ok) {
     state.score++;
     Sound.correct();
@@ -1138,10 +1107,9 @@ function key(k, label, cls) {
 
 function buildKeypad(subject) {
   const pad = $("keypad");
-  pad.classList.toggle("letters", subject === "danish");
+  pad.classList.toggle("options", subject === "danish");
   if (subject === "danish") {
-    pad.innerHTML = LETTER_ROWS.map((row) => [...row].map((c) => key(c, c)).join("")).join("") +
-      key("del", "⌫", "del") + key("ok", t().check, "ok");
+    pad.innerHTML = "";   // filled with three spellings per question by renderQuestion()
   } else {
     pad.innerHTML = [1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => key(n, n)).join("") +
       key("del", "⌫", "del") + key(0, 0) + key("ok", t().check, "ok");
@@ -1202,7 +1170,8 @@ $("keypad").addEventListener("click", (e) => {
   const key = e.target.closest("[data-key]");
   if (!key || state.locked) return;
   const k = key.dataset.key;
-  if (k === "del") setTyped(state.typed.slice(0, -1));
+  if (k === "pick") answer(key.dataset.word);
+  else if (k === "del") setTyped(state.typed.slice(0, -1));
   else if (k === "ok") { if (state.typed) answer(state.typed); }
   else setTyped(state.typed + k);
 });
@@ -1210,7 +1179,9 @@ $("keypad").addEventListener("click", (e) => {
 document.addEventListener("keydown", (e) => {
   if ($("play").classList.contains("hidden") || state.locked || e.ctrlKey || e.metaKey || e.altKey) return;
   const spelling = state.current && state.current.topic === "danish";
-  if (spelling ? /^[a-zæøå]$/i.test(e.key) : /^[0-9]$/.test(e.key)) setTyped(state.typed + e.key.toLowerCase());
+  if (spelling && /^[1-3]$/.test(e.key)) answer(state.current.options[Number(e.key) - 1]);
+  else if (spelling) return;
+  else if (/^[0-9]$/.test(e.key)) setTyped(state.typed + e.key);
   else if (e.key === "Backspace") setTyped(state.typed.slice(0, -1));
   else if (e.key === "Enter" && state.typed) answer(state.typed);
   else return;
@@ -1225,10 +1196,7 @@ $("quitBtn").onclick = stopRound;
 $("againBtn").onclick = startRound;
 $("menuBtn").onclick = () => show("start");
 $("startBtn").onclick = startRound;
-document.querySelectorAll("[data-lang]").forEach((b) =>
-  b.addEventListener("click", () => { state.lang = b.dataset.lang; applyText(); }));
 
-state.lang = (navigator.language || "en").toLowerCase().startsWith("da") ? "da" : "en";
 state.failed = readQueue().length;
 $("dino").innerHTML = dinoSvg();
 buildKeypad(state.subject);
