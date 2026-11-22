@@ -57,6 +57,21 @@ headhunter can still just click the link. A native app was rejected: weeks of wo
 Apple fee, store review for a children's app, and reviewers would have to install it.
 Offline answers are queued and sent later; silver's deduplication makes resends safe.
 
+**2026-11-22: the round became a timed obstacle course.** To make the game more fun for a child,
+the 10 questions are now 10 obstacles on a street course, and the goal is the fastest time.
+A wrong answer adds 10 seconds; a skip counts as wrong. The look is inspired by blocky Roblox
+town games: bright flat colours, thick outlines and a block-figure runner, drawn in CSS and SVG
+with no copied assets or names. Choices made along the way:
+- No retry after a wrong answer: the game moves on, so each question still sends exactly one
+  event and silver's one-row-per-question deduplication stays valid. The event schema, the
+  questions and the levels are unchanged, so no migration and no change to dbt.
+- The clock only counts time while a question is on screen. Animations do not cost time, so
+  `response_ms` and the course time measure the same thing.
+- An on-screen keypad replaces the phone keyboard, which covered half the course on a phone.
+- Best times stay in `localStorage` on the device and are never sent.
+- The game keeps one daytime theme, also in dark mode.
+The introduction video (`video/`) still shows the old quiz screen.
+
 **2026-11-20: introduction video instead of a recorded demo.** A 40-second square video made in
 code with Remotion (`video/`), so no one has to appear on camera. The local disk had too little
 space for Remotion and a headless Chrome, so the `video` workflow renders it on GitHub's servers

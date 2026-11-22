@@ -5,7 +5,17 @@ A single `index.html` with no dependencies and no build step. Open it in a brows
 ## What it does
 
 - Ages 8–12. Topics: addition, subtraction, multiplication, division. 3 levels each.
-- Rounds of 10 questions. The player types the answer, or skips.
+- A round is an obstacle course with 10 obstacles, one question each. The goal is the fastest time.
+- The clock runs while a question is on screen and stops while the runner moves.
+  Final time = thinking time + 10 seconds for each wrong or skipped answer.
+- Right answer: the runner jumps the obstacle. Wrong or skipped: the runner crashes into it,
+  the correct answer is shown, +10 s is added, and the runner climbs over. There is no retry,
+  so each question still gives exactly one event.
+- The player types the answer on an on-screen keypad (a physical keyboard also works), or skips.
+  The keypad keeps the phone keyboard from covering the course.
+- Best time per topic and level is kept in `localStorage` on the device only. It is never sent.
+- Graphics: a bright, blocky sunny-town look (flat colours, thick outlines, a block-figure runner),
+  drawn with CSS and inline SVG. No images or fonts are loaded.
 - DA/EN toggle. The default follows the browser language.
 - A "Behind the scenes" panel shows the events sent from this visit.
 
