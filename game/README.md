@@ -4,7 +4,11 @@ A single `index.html` with no dependencies and no build step. Open it in a brows
 
 ## What it does
 
-- Ages 8–12. Topics: addition, subtraction, multiplication, division. 3 levels each.
+- Ages 8–12. Topics: addition, subtraction, multiplication, division and mixed puzzles. 3 levels each.
+- Mixed puzzles (`MIXED` in `index.html`, mirrored in `simulator/questions.py`) has five task types,
+  two of each per course in random order: number sequences, unit conversion (km, m, cm, kg, g,
+  hours, minutes, seconds, days; halves at Hard), symbol puzzles (⭐ + ⭐ = 12), price puzzles
+  with baskets of fruit, and counting a grid of fruit (rows × columns). All answers are whole numbers.
 - A round is an obstacle course with 10 obstacles, one question each. The goal is the fastest time.
 - The clock runs while a question is on screen and stops while the runner moves.
   Final time = thinking time + 10 seconds for each wrong or skipped answer.

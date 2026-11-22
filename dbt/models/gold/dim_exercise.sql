@@ -15,5 +15,6 @@ select
         when 'subtraction' then 2
         when 'multiplication' then 3
         when 'division' then 4
+        when 'mixed' then 5
     end as topic_order
 from {{ ref('exercise_levels') }}

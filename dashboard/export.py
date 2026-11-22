@@ -30,6 +30,10 @@ QUERIES = {
     "error_types": """
         select error_type, rule_order, label, description, example, is_systematic
         from gold.dim_error_type order by rule_order""",
+    "task_types": """
+        select source, task_type, level, answers, correct_rate, wrong_rate, skip_rate,
+               median_response_ms, task_order
+        from gold.mart_task_types order by source, task_order, level""",
     "times_tables": """
         select source, topic, times_table, answers, correct_rate, median_response_ms
         from gold.mart_times_tables order by source, topic, times_table""",

@@ -11,3 +11,6 @@ multiplication_3,multiplication,3,Multiplication,×,Hard,2-digit × 2-digit (11�
 division_1,division,1,Division,÷,Easy,Inverse times tables (÷ 2–10)
 division_2,division,2,Division,÷,Medium,÷ 1-digit with answers 11–25
 division_3,division,3,Division,÷,Hard,÷ 2-digit (11–20) with answers 2–20
+mixed_1,mixed,1,Mixed,🧩,Easy,"Sequences, units, symbol and price puzzles, fruit grids"
+mixed_2,mixed,2,Mixed,🧩,Medium,"Two-step puzzles, unit conversions both ways"
+mixed_3,mixed,3,Mixed,🧩,Hard,"Half units, three-symbol and bigger price puzzles"

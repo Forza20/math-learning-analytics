@@ -25,10 +25,13 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from errors import make_wrong_answer
-from questions import LEVELS, TOPICS, Question, make_question
+from questions import LEVELS, MIXED, TASK_TYPES, TOPICS, Question, make_question
 
 LOCAL_TZ = ZoneInfo("Europe/Copenhagen")
 QUESTIONS_PER_ROUND = 10
+# The game got the "mixed" topic on this day. Earlier days are simulated with the
+# four original topics only, so a re-run recreates exactly the same rows.
+MIXED_FROM = date(2026, 11, 22)
 # Pause the game shows after an answer before the next question (game/index.html).
 PAUSE_CORRECT_MS = 700
 PAUSE_OTHER_MS = 1600
@@ -36,6 +39,7 @@ PAUSE_OTHER_MS = 1600
 COLUMNS = [
     "event_id", "session_id", "source", "language", "topic", "level", "question_index",
     "operand_a", "operand_b", "correct_answer", "given_answer", "response_ms", "client_ts",
+    "task_type", "question_text",
 ]
 
 # Relative activity per local hour 0-23. Weekdays peak after school.
@@ -43,11 +47,18 @@ HOUR_WEIGHTS_WEEKDAY = [0, 0, 0, 0, 0, 0, 1, 3, 2, 1, 1, 1, 2, 2, 4, 8, 10, 9, 8
 HOUR_WEIGHTS_WEEKEND = [0, 0, 0, 0, 0, 0, 0, 1, 3, 5, 6, 6, 5, 5, 5, 6, 6, 6, 5, 5, 4, 2, 1, 0]
 
 # How much each topic and level lowers the chance of a correct answer.
-TOPIC_DIFFICULTY = {"addition": 0.00, "subtraction": 0.05, "multiplication": 0.10, "division": 0.15}
+TOPIC_DIFFICULTY = {"addition": 0.00, "subtraction": 0.05, "multiplication": 0.10, "division": 0.15, "mixed": 0.08}
 LEVEL_DIFFICULTY = {1: 0.00, 2: 0.15, 3: 0.30}
 # Typical seconds to answer, before player speed and noise.
 BASE_SECONDS = {1: 4.0, 2: 8.0, 3: 13.0}
-TOPIC_TIME = {"addition": 1.0, "subtraction": 1.1, "multiplication": 1.2, "division": 1.4}
+TOPIC_TIME = {"addition": 1.0, "subtraction": 1.1, "multiplication": 1.2, "division": 1.4, "mixed": 1.5}
+# Mixed puzzles: extra difficulty per task type. Two-step symbol and price puzzles
+# and half units are the hard ones; counting a grid is the easiest.
+TASK_DIFFICULTY = {"sequence": 0.00, "unit": 0.06, "symbol": 0.04, "price": 0.08, "array": -0.08}
+
+
+def topics_for(day: date) -> tuple[str, ...]:
+    return TOPICS + (MIXED,) if day >= MIXED_FROM else TOPICS
 
 
 @dataclass
@@ -59,10 +70,10 @@ class Player:
     language: str
 
 
-def make_player(rng: random.Random) -> Player:
+def make_player(rng: random.Random, topics: tuple[str, ...] = TOPICS) -> Player:
     return Player(
         skill=rng.betavariate(5, 2.5),
-        topic_bonus={t: rng.gauss(0, 0.08) for t in TOPICS},
+        topic_bonus={t: rng.gauss(0, 0.08) for t in topics},
         speed=rng.lognormvariate(0, 0.25),
         persistence=rng.betavariate(4, 1.5),
         language="da" if rng.random() < 0.7 else "en",
@@ -118,6 +129,8 @@ def question_difficulty(q: Question) -> float:
         return _table_difficulty(q.a, q.b) - _MUL_L1_MEAN
     if q.topic == "division" and q.level == 1:
         return FACTOR_DIFFICULTY.get(q.b, 0.0) - _DIV_L1_MEAN
+    if q.task_type:
+        return TASK_DIFFICULTY[q.task_type]
     return 0.0
 
 
@@ -160,13 +173,15 @@ def simulate_round(player: Player, topic: str, level: int, start: datetime,
     events: list[dict] = []
     clock = start
     mistakes_in_a_row = 0
+    # Mixed: two of each task type per round, in random order, as in the game.
+    tasks = rng.sample(TASK_TYPES * 2, len(TASK_TYPES) * 2) if topic == MIXED else None
 
     for index in range(1, QUESTIONS_PER_ROUND + 1):
         if index > 1 and rng.random() < chance_quit(player, mistakes_in_a_row):
             stats["rounds_quit"] += 1
             break
 
-        q = make_question(topic, level, rng)
+        q = make_question(topic, level, rng, tasks[index - 1] if tasks else None)
         p = chance_correct(player, q, index)
         p_skip = 0.02 + 0.10 * (1 - p)
         roll = rng.random()
@@ -196,6 +211,8 @@ def simulate_round(player: Player, topic: str, level: int, start: datetime,
             "given_answer": given,
             "response_ms": ms,
             "client_ts": clock.isoformat(timespec="milliseconds"),
+            "task_type": q.task_type,
+            "question_text": q.text,
         })
         clock += timedelta(milliseconds=PAUSE_CORRECT_MS if outcome == "correct" else PAUSE_OTHER_MS)
         mistakes_in_a_row = 0 if outcome == "correct" else mistakes_in_a_row + 1
@@ -208,13 +225,14 @@ def simulate_day(day: date, players: int, seed: int) -> tuple[list[dict], Counte
     rng = random.Random(seed)
     stats: Counter = Counter()
     events: list[dict] = []
+    topics = topics_for(day)
     for _ in range(players):
-        player = make_player(rng)
+        player = make_player(rng, topics)
         clock = session_start(day, rng)
-        favourite = rng.choice(TOPICS)
+        favourite = rng.choice(topics)
         rounds = rng.choices([1, 2, 3], weights=[5, 3, 2])[0]
         for _ in range(rounds):
-            topic = favourite if rng.random() < 0.6 else rng.choice(TOPICS)
+            topic = favourite if rng.random() < 0.6 else rng.choice(topics)
             round_events, clock = simulate_round(player, topic, pick_level(player, rng), clock, rng, stats)
             events.extend(round_events)
             clock += timedelta(seconds=rng.uniform(5, 40))

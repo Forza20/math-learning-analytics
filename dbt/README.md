@@ -28,15 +28,20 @@ response is stored twice with different IDs. Silver keeps the first copy per
 | 1 | `off_by_one` | differs by 1 | 56 → 57 |
 | 2 | `carry_borrow` | column-by-column without carrying or borrowing (+, −) | 47 + 38 → 75 |
 | 3 | `reversed_digits` | digits of the answer reversed | 56 → 65 |
-| 4 | `wrong_operation` | another operation on the same numbers | 7 × 8 → 15 |
-| 5 | `table_neighbor` | one factor off by one (×) | 7 × 8 → 49 |
-| 6 | `implausible` | more digits than the answer and over twice its size | 956 → 4547 |
-| 7 | `other` | none of the above | |
+| 4 | `wrong_operation` | another operation on the same numbers; for mixed puzzles a sequence in the wrong direction, adding instead of halving, or rows + columns | 7 × 8 → 15 |
+| 5 | `table_neighbor` | one factor off by one (×, fruit grids) | 7 × 8 → 49 |
+| 6 | `unit_slip` | a unit conversion off by a power of ten (mixed) | 3 km → 300 m |
+| 7 | `implausible` | more digits than the answer and over twice its size | 956 → 4547 |
+| 8 | `other` | none of the above | |
 
 The simulator records which error it intended, so the classifier can be checked
 against it: on the first simulated day, every systematic type came back within a few
 answers of the intended count. The simulator's `random` guesses land in `implausible`,
 `other` or, by chance, `off_by_one`.
+
+**Mixed puzzles.** Topic `mixed` (from 2026-11-22) has a `task_type` and a `question_text`.
+`operand_a` and `operand_b` keep a fixed meaning per task type, listed in
+`supabase/migrations/0002_mixed_topic.sql`, so the rules above need no text parsing.
 
 **Rules version.** The game's levels changed for ages 8–12 at `var('rules_v2_from')`.
 Earlier events have `rules_version = 1` and must not be compared by level with later ones.
@@ -65,6 +70,7 @@ dim_exercise ── fct_answers ── dim_error_type
 | `mart_times_tables` | source, topic, table 2–10 | Correct rate and median time per times table |
 | `mart_dropoff` | source, topic, level, question 1–10 | Share of rounds reaching each question, quits, accuracy by question |
 | `mart_daily_activity` | day, source | Sessions, answers, rates; days without play included |
+| `mart_task_types` | source, task type, level | Correct, wrong and skip rates and median time for mixed puzzles |
 
 Marts use analysable rows only. The facts keep every row, so excluded data stays traceable.
 

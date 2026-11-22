@@ -19,7 +19,7 @@
     --accent: #2a78d6;
     /* Categorical slots, fixed order (validated: scripts/validate_palette.js) */
     --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100;
-    --s5: #e87ba4; --s6: #008300; --s7: #6250d6;
+    --s5: #e87ba4; --s6: #008300; --s7: #6250d6; --s8: #8b8f98;
     /* Ordinal ramp for levels Easy -> Hard */
     --o1: #86b6ef; --o2: #2a78d6; --o3: #104281;
   }
@@ -30,7 +30,7 @@
       --muted: #898781; --grid: #2c2c2a; --axis: #383835; --border: rgba(255, 255, 255, 0.10);
       --accent: #3987e5;
       --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500;
-      --s5: #d55181; --s6: #0ca30c; --s7: #9085e9;
+      --s5: #d55181; --s6: #0ca30c; --s7: #9085e9; --s8: #9aa0a8;
       --o1: #184f95; --o2: #3987e5; --o3: #9ec5f4;
     }
   }
@@ -40,7 +40,7 @@
     --muted: #898781; --grid: #2c2c2a; --axis: #383835; --border: rgba(255, 255, 255, 0.10);
     --accent: #3987e5;
     --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500;
-    --s5: #d55181; --s6: #0ca30c; --s7: #9085e9;
+    --s5: #d55181; --s6: #0ca30c; --s7: #9085e9; --s8: #9aa0a8;
     --o1: #184f95; --o2: #3987e5; --o3: #9ec5f4;
   }
 
@@ -147,6 +147,13 @@
       <details><summary>Show table</summary><div class="table-wrap" id="tErrors"></div></details>
     </article>
 
+    <article class="card wide">
+      <h2>Mixed puzzles</h2>
+      <p class="sub">Share of answers that were correct, per kind of puzzle. Added 22 November 2026.</p>
+      <div class="chart"><canvas id="cTasks" role="img" aria-label="Bar chart of correct answer rate per mixed puzzle type and level"></canvas></div>
+      <details><summary>Show table</summary><div class="table-wrap" id="tTasks"></div></details>
+    </article>
+
     <article class="card">
       <h2>Times tables</h2>
       <p class="sub">Correct answers per table, Easy level</p>
@@ -190,8 +197,10 @@
 "use strict";
 
 const D = window.DASHBOARD_DATA;
-const TOPICS = ["addition", "subtraction", "multiplication", "division"];
-const TOPIC_LABEL = { addition: "Addition", subtraction: "Subtraction", multiplication: "Multiplication", division: "Division" };
+const TOPICS = ["addition", "subtraction", "multiplication", "division", "mixed"];
+const TOPIC_LABEL = { addition: "Addition", subtraction: "Subtraction", multiplication: "Multiplication", division: "Division", mixed: "Mixed puzzles" };
+const TASK_TYPES = ["sequence", "unit", "symbol", "price", "array"];
+const TASK_LABEL = { sequence: "Number sequences", unit: "Unit conversion", symbol: "Symbol puzzles", price: "Price puzzles", array: "Fruit grids" };
 const LEVEL_LABEL = { 1: "Easy", 2: "Medium", 3: "Hard" };
 const state = { source: "simulated" };
 const charts = {};
@@ -349,6 +358,21 @@ function renderErrors() {
       .map((e) => [TOPIC_LABEL[t], e.label, num(totals[t][e.error_type]), pct(share(t, e.error_type))])));
 }
 
+function renderTasks() {
+  const rows = bySource(D.task_types || []);
+  showEmpty("cTasks", !rows.length);
+  const get = (type, level, field) => rows.find((r) => r.task_type === type && r.level === level)?.[field] ?? null;
+  draw("cTasks", {
+    type: "bar",
+    data: { labels: TASK_TYPES.map((t) => TASK_LABEL[t]), datasets: [1, 2, 3].map((lv) => ({
+      label: LEVEL_LABEL[lv], data: TASK_TYPES.map((t) => get(t, lv, "correct_rate")), ...barStyle(css("--o" + lv)) })) },
+    options: baseOptions({ yPercent: true })
+  });
+  table("tTasks",
+    [{ label: "Puzzle" }, { label: "Level" }, { label: "Answers", num: 1 }, { label: "Correct", num: 1 }, { label: "Wrong", num: 1 }, { label: "Skipped", num: 1 }, { label: "Median time", num: 1 }],
+    rows.map((r) => [TASK_LABEL[r.task_type], LEVEL_LABEL[r.level], num(r.answers), pct(r.correct_rate), pct(r.wrong_rate), pct(r.skip_rate), secs(r.median_response_ms)]));
+}
+
 function renderTables() {
   const rows = bySource(D.times_tables);
   showEmpty("cTables", !rows.length);
@@ -426,6 +450,7 @@ function renderAll() {
   renderKpis();
   renderDifficulty();
   renderErrors();
+  renderTasks();
   renderTables();
   renderDropoff();
   renderDaily();

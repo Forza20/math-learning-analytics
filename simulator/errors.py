@@ -18,7 +18,17 @@ ERROR_WEIGHTS = {
     "subtraction": {"carry_borrow": 45, "off_by_one": 20, "reversed_digits": 10, "wrong_operation": 15, "random": 10},
     "multiplication": {"table_neighbor": 45, "off_by_one": 15, "reversed_digits": 10, "wrong_operation": 15, "random": 15},
     "division": {"off_by_one": 40, "wrong_operation": 25, "reversed_digits": 15, "random": 20},
+    # Mixed puzzles are keyed by task type.
+    "sequence": {"wrong_operation": 30, "off_by_one": 30, "reversed_digits": 10, "random": 30},
+    "unit": {"unit_slip": 50, "off_by_one": 10, "random": 40},
+    "symbol": {"wrong_operation": 40, "off_by_one": 30, "random": 30},
+    "price": {"wrong_operation": 30, "off_by_one": 30, "random": 40},
+    "array": {"table_neighbor": 40, "wrong_operation": 30, "off_by_one": 15, "random": 15},
 }
+
+
+def weights_for(q: Question) -> dict:
+    return ERROR_WEIGHTS[q.task_type or q.topic]
 
 
 def off_by_one(q: Question, rng: random.Random) -> Optional[int]:
@@ -50,6 +60,14 @@ def reversed_digits(q: Question, rng: random.Random) -> Optional[int]:
 
 
 def wrong_operation(q: Question, rng: random.Random) -> Optional[int]:
+    if q.task_type:
+        options = {
+            "sequence": [2 * q.a - q.answer],          # went the wrong way: 16, 12, 8, 4 -> 0
+            "symbol": [q.a + q.b],                     # added instead of halving or subtracting
+            "price": [q.a - q.b, q.a + q.b],           # used the count instead of dividing by it
+            "array": [q.a + q.b],                      # rows + columns
+        }.get(q.task_type)
+        return rng.choice(options) if options else None
     options = {
         "addition": [abs(q.a - q.b), q.a * q.b],
         "subtraction": [q.a + q.b],
@@ -61,11 +79,20 @@ def wrong_operation(q: Question, rng: random.Random) -> Optional[int]:
 
 def table_neighbor(q: Question, rng: random.Random) -> Optional[int]:
     """One factor off by one: 7 x 8 answered as 7 x 7 or 6 x 8."""
-    if q.topic != "multiplication":
+    if q.topic != "multiplication" and q.task_type != "array":
         return None
     if rng.random() < 0.5:
         return q.a * (q.b + rng.choice((-1, 1)))
     return (q.a + rng.choice((-1, 1))) * q.b
+
+
+def unit_slip(q: Question, rng: random.Random) -> Optional[int]:
+    """A power-of-ten slip in a unit conversion: 3 km = 300 m, or 200 cm = 20 m."""
+    if q.task_type != "unit":
+        return None
+    if q.answer % 10 == 0 and rng.random() < 0.5:
+        return q.answer // 10
+    return q.answer * 10
 
 
 def random_answer(q: Question, rng: random.Random) -> Optional[int]:
@@ -83,6 +110,7 @@ GENERATORS: dict[str, Callable[[Question, random.Random], Optional[int]]] = {
     "reversed_digits": reversed_digits,
     "wrong_operation": wrong_operation,
     "table_neighbor": table_neighbor,
+    "unit_slip": unit_slip,
     "random": random_answer,
 }
 
@@ -94,7 +122,7 @@ def is_valid_wrong(q: Question, value: Optional[int]) -> bool:
 
 def make_wrong_answer(q: Question, rng: random.Random) -> tuple[int, str]:
     """Return (wrong answer, error type)."""
-    weights = ERROR_WEIGHTS[q.topic]
+    weights = weights_for(q)
     types = list(weights)
     for _ in range(10):
         error_type = rng.choices(types, weights=[weights[t] for t in types])[0]

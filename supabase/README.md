@@ -18,6 +18,7 @@ Files in `migrations/` are applied in order with the Supabase SQL editor.
 | File | Applied | Verified |
 |---|---|---|
 | `0001_bronze_answer_events.sql` | 2026-11-20 | RLS on; anon can insert 11 columns only; anon select and insert of `source` are denied; security advisor clean |
+| `0002_mixed_topic.sql` | 2026-11-22 | Topic `mixed` plus `task_type` and `question_text`. Tested as anon in a rolled-back transaction: a mixed and a classic row insert; mixed without a task, classic with a task and non-ASCII text are rejected |
 
 ## Required dashboard setting
 

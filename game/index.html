@@ -162,6 +162,19 @@
     text-align: center; line-height: 1.3;
   }
   .answer-box.empty { color: #a8b0bb; }
+  #question.small { font-size: clamp(1.25rem, 6vw, 1.75rem); }
+  /* Mixed puzzles: extra lines above the question, or a grid of fruit to count */
+  .prompt { text-align: center; font-weight: 900; font-size: clamp(1.25rem, 6vw, 1.6rem); line-height: 1.35; margin-bottom: 4px; font-variant-numeric: tabular-nums; }
+  .prompt .hint { font-size: 1rem; color: var(--muted); }
+  .fruit-grid {
+    display: inline-grid; gap: 2px; font-size: 15px; line-height: 1; padding: 6px;
+    border: 3px solid var(--line); border-radius: 10px; background: #fff7d6;
+  }
+  @media (max-height: 740px) {
+    .scene { height: 120px; }
+    .key { min-height: 46px; }
+    .quiz { padding: 8px 12px; }
+  }
   .feedback { min-height: 1.6rem; text-align: center; font-weight: 800; margin-top: 6px; }
   .feedback.good { color: var(--good); }
   .feedback.bad { color: var(--bad); }
@@ -222,7 +235,7 @@
       <button class="btn secondary small" id="quitBtn" type="button" aria-label="Stop">✕</button>
       <span class="pill" id="qCounter"></span>
       <span class="pill clock" id="clock" aria-label="Time">0:00.0</span>
-      <button class="btn secondary small" id="skipBtn" type="button" data-t="skip">Skip</button>
+      <button class="btn secondary small" id="skipBtn" type="button" aria-label="Skip">⏭</button>
     </div>
     <div class="scene" id="scene" aria-hidden="true">
       <div class="cloud" style="left:8%;top:22px;width:60px;height:16px"></div>
@@ -243,9 +256,13 @@
       <div class="banner" id="banner"></div>
     </div>
     <div class="card quiz">
-      <div class="qline" aria-live="polite">
-        <span id="question"></span>
-        <span class="answer-box empty" id="answerBox">?</span>
+      <div aria-live="polite">
+        <div class="prompt hidden" id="prompt"></div>
+        <div class="qline">
+          <span id="question"></span>
+          <span class="answer-box empty" id="answerBox">?</span>
+          <span id="suffix"></span>
+        </div>
       </div>
       <div class="feedback" id="feedback" role="status"></div>
     </div>
@@ -312,8 +329,11 @@ const TEXT = {
     install: "Install app",
     iosHint: "To install on iPhone or iPad: tap Share, then Add to Home Screen.",
     dashLink: "See what the data shows →",
-    topics: { addition: "Plus", subtraction: "Minus", multiplication: "Times", division: "Divide" },
-    levels: { 1: "Easy", 2: "Medium", 3: "Hard" }
+    topics: { addition: "Plus", subtraction: "Minus", multiplication: "Times", division: "Divide", mixed: "Mixed" },
+    levels: { 1: "Easy", 2: "Medium", 3: "Hard" },
+    next: "What comes next?", inTotal: "in total", money: "coins",
+    units: { m: "m", cm: "cm", km: "km", kg: "kg", g: "g", h: ["hour", "hours"], min: "min", s: "sec", day: ["day", "days"] },
+    decimal: "."
   },
   da: {
     title: "Regnestien",
@@ -333,13 +353,16 @@ const TEXT = {
     install: "Installér app",
     iosHint: "Installér på iPhone eller iPad: tryk Del og derefter Føj til hjemmeskærm.",
     dashLink: "Se hvad dataene viser →",
-    topics: { addition: "Plus", subtraction: "Minus", multiplication: "Gange", division: "Division" },
-    levels: { 1: "Let", 2: "Mellem", 3: "Svær" }
+    topics: { addition: "Plus", subtraction: "Minus", multiplication: "Gange", division: "Division", mixed: "Blandet" },
+    levels: { 1: "Let", 2: "Mellem", 3: "Svær" },
+    next: "Hvad er det næste tal?", inTotal: "i alt", money: "kr.",
+    units: { m: "m", cm: "cm", km: "km", kg: "kg", g: "g", h: ["time", "timer"], min: "min.", s: "sek.", day: ["døgn", "døgn"] },
+    decimal: ","
   }
 };
 
-const TOPICS = ["addition", "subtraction", "multiplication", "division"];
-const SYMBOL = { addition: "+", subtraction: "−", multiplication: "×", division: "÷" };
+const TOPICS = ["addition", "subtraction", "multiplication", "division", "mixed"];
+const SYMBOL = { addition: "+", subtraction: "−", multiplication: "×", division: "÷", mixed: "🧩" };
 // Difficulty per level, aimed at ages 8–12.
 // Addition/subtraction: numbers within this limit.
 const RANGE = { 1: 100, 2: 500, 3: 1000 };
@@ -360,7 +383,7 @@ const DIVISION = {
 const state = {
   lang: "en", topic: "addition", level: 1,
   sessionId: null, index: 0, score: 0, current: null, shownAt: 0, locked: true,
-  typed: "", runMs: 0, penalties: 0, x: 0, run: 0,
+  typed: "", runMs: 0, penalties: 0, x: 0, run: 0, mixQueue: [],
   log: [], sent: 0, failed: 0
 };
 
@@ -385,9 +408,130 @@ function formatTime(ms) {
   return m + ":" + String(s).padStart(2, "0") + "." + (tenths % 10);
 }
 
+// ---- Mixed puzzles (topic "mixed") ----------------------------------------
+// Five task types in the style of Danish worksheets for ages 8–12. A mixed round
+// has two of each, in random order. Mirrored in simulator/questions.py.
+// operand_a and operand_b keep a fixed meaning per type (see
+// supabase/migrations/0002_mixed_topic.sql), and question_text is a short
+// language-neutral ASCII form of the task for the pipeline.
+// view() builds what the player sees: extra prompt lines or a fruit grid,
+// the text before the answer box, and a unit after it.
+const TASK_TYPES = ["sequence", "unit", "symbol", "price", "array"];
+const FRUIT = [["banana", "🍌"], ["strawberry", "🍓"], ["apple", "🍎"], ["melon", "🍉"], ["lolly", "🍭"]];
+const pick = (list) => list[rand(0, list.length - 1)];
+
+function shuffle(list) {
+  for (let i = list.length - 1; i > 0; i--) {
+    const j = rand(0, i);
+    [list[i], list[j]] = [list[j], list[i]];
+  }
+  return list;
+}
+
+// Amounts are kept in tenths, so 1,5 hours is 15 and no floating point is needed.
+const whole = (lo, hi, unit = 1) => () => rand(lo, hi) * unit * 10;
+const halves = (lo, hi) => () => rand(lo, hi) * 10 + 5;
+// [from unit, to unit, factor, multiply (true) or divide (false), amount in tenths]
+const UNITS = {
+  1: [["m", "cm", 100, true, whole(1, 9)], ["km", "m", 1000, true, whole(1, 9)], ["h", "min", 60, true, whole(1, 5)]],
+  2: [["kg", "g", 1000, true, whole(1, 9)], ["min", "s", 60, true, whole(1, 10)], ["cm", "m", 100, false, whole(1, 9, 100)],
+      ["day", "h", 24, true, whole(1, 7)], ["m", "km", 1000, false, whole(1, 9, 1000)]],
+  3: [["h", "min", 60, true, halves(1, 4)], ["km", "m", 1000, true, halves(0, 9)], ["kg", "g", 1000, true, halves(0, 9)],
+      ["m", "cm", 100, true, halves(0, 9)], ["min", "s", 60, true, halves(1, 9)]]
+};
+
+function unitLabel(unit, tenths) {
+  const label = t().units[unit];
+  return Array.isArray(label) ? label[tenths === 10 ? 0 : 1] : label;
+}
+
+const decimal = (tenths) => String(tenths / 10).replace(".", t().decimal);
+
+const MIXED = {
+  // 4, 8, 12, 16, ?   operand_a = last shown number, operand_b = step
+  sequence(level) {
+    let step, start, up = true;
+    if (level === 1) {
+      step = pick([2, 5, 10]);
+      start = step * rand(0, 5);
+    } else if (level === 2) {
+      step = rand(3, 9);
+      up = Math.random() < 0.5;
+      start = up ? rand(1, 60) : rand(4 * step, 4 * step + 60);
+    } else {
+      step = Math.random() < 0.5 ? rand(11, 25) : pick([25, 50, 100]);
+      up = Math.random() < 0.5;
+      start = up ? rand(100, 500) : rand(4 * step + 50, 4 * step + 500);
+    }
+    const d = up ? step : -step;
+    const terms = [0, 1, 2, 3].map((i) => start + i * d);
+    return {
+      a: terms[3], b: step, answer: terms[3] + d, text: terms.join(", ") + ", ?",
+      view: () => ({ hint: t().next, ask: terms.join(", ") + ",", small: true })
+    };
+  },
+  // 1,5 hours = ? min   operand_a = conversion factor, operand_b = 0
+  unit(level) {
+    const [from, to, factor, multiply, amount] = pick(UNITS[level]);
+    const tenths = amount();
+    const answer = multiply ? tenths * factor / 10 : tenths / 10 / factor;
+    return {
+      a: factor, b: 0, answer, text: `${tenths / 10} ${from} = ? ${to}`,
+      view: () => ({ ask: `${decimal(tenths)} ${unitLabel(from, tenths)} =`, suffix: unitLabel(to, answer * 10) })
+    };
+  },
+  // ⭐ + ⭐ = 12, ⭐ + 💎 = 13, 💎 = ?   operand_a = last sum, operand_b = value of ⭐ (0 in one step)
+  symbol(level) {
+    const A = "⭐", B = "💎";
+    if (level === 1) {
+      const x = rand(2, 10);
+      return { a: 2 * x, b: 0, answer: x, text: `A+A=${2 * x}; A=?`,
+        view: () => ({ lines: [`${A} + ${A} = ${2 * x}`], ask: `${A} =` }) };
+    }
+    const x = level === 2 ? rand(2, 10) : rand(4, 15);
+    const y = level === 2 ? rand(2, 12) : rand(5, 25);
+    const n = level === 2 ? 2 : 3;
+    return {
+      a: x + y, b: x, answer: y, text: `${Array(n).fill("A").join("+")}=${n * x}; A+B=${x + y}; B=?`,
+      view: () => ({ lines: [`${Array(n).fill(A).join(" + ")} = ${n * x}`, `${A} + ${B} = ${x + y}`], ask: `${B} =` })
+    };
+  },
+  // 🍌🍌🍌🍌 = 20, 🍓🍓🍌 = 11, 🍓 = ?   operand_a = basket total, operand_b = how many of the asked fruit
+  price(level) {
+    const [[xName, x], [yName, y]] = shuffle(FRUIT.slice());
+    if (level === 1) {
+      const p = rand(2, 10), n = rand(2, 5);
+      return { a: n * p, b: n, answer: p, text: `${n} ${xName}=${n * p}; ${xName}=?`,
+        view: () => ({ lines: [`${x.repeat(n)} = ${n * p} ${t().money}`], ask: `${x} =`, suffix: t().money }) };
+    }
+    const p = level === 2 ? rand(2, 10) : rand(5, 20);
+    const q = level === 2 ? rand(2, 10) : rand(5, 25);
+    const n = rand(2, 4);
+    const k = level === 2 ? rand(1, 3) : rand(2, 3);
+    const m = level === 2 ? 1 : 2;
+    const total = k * q + m * p;
+    return {
+      a: total, b: k, answer: q, text: `${n} ${xName}=${n * p}; ${k} ${yName}+${m} ${xName}=${total}; ${yName}=?`,
+      view: () => ({ lines: [`${x.repeat(n)} = ${n * p} ${t().money}`, `${y.repeat(k)}${x.repeat(m)} = ${total} ${t().money}`], ask: `${y} =`, suffix: t().money })
+    };
+  },
+  // A grid of fruit: rows × columns.   operand_a = rows, operand_b = columns
+  array(level) {
+    const [r0, r1, c0, c1] = { 1: [2, 5, 2, 5], 2: [3, 5, 4, 8], 3: [4, 6, 6, 10] }[level];
+    const rows = rand(r0, r1), cols = rand(c0, c1), fruit = pick(FRUIT)[1];
+    return { a: rows, b: cols, answer: rows * cols, text: `${rows}x${cols} grid`,
+      view: () => ({ grid: { rows, cols, fruit }, ask: `${fruit} ${t().inTotal} =` }) };
+  }
+};
+
 // ---- Question generation ------------------------------------------------
-// Returns { a, b, answer }. All values are whole numbers >= 0.
+// Returns { a, b, answer }, plus { type, text, view } for mixed puzzles.
+// All values are whole numbers >= 0.
 function makeQuestion(topic, level) {
+  if (topic === "mixed") {
+    const type = state.mixQueue[(state.index - 1) % state.mixQueue.length];
+    return Object.assign({ type }, MIXED[type](level));
+  }
   if (topic === "addition") {
     const max = RANGE[level];
     const a = rand(Math.floor(max / 10), max - 1);
@@ -430,6 +574,10 @@ function track(givenAnswer, responseMs) {
     response_ms: Math.min(Math.round(responseMs), 600000),
     client_ts: new Date().toISOString()
   };
+  if (q.type) {
+    event.task_type = q.type;
+    event.question_text = q.text;
+  }
   state.log.push(event);
   renderLog();
   send(event, 2);
@@ -663,6 +811,7 @@ function applyText() {
   document.querySelectorAll("[data-lang]").forEach((b) =>
     b.setAttribute("aria-pressed", String(b.dataset.lang === state.lang)));
   $("quitBtn").setAttribute("aria-label", t().quit);
+  $("skipBtn").setAttribute("aria-label", t().skip);
   renderChoices();
   renderStatus();
   if (state.current) renderMeta();
@@ -718,6 +867,47 @@ function popPenalty() {
   setTimeout(() => p.remove(), 1300);
 }
 
+function renderQuestion(q) {
+  const prompt = $("prompt");
+  prompt.textContent = "";
+  if (!q.type) {
+    $("question").textContent = q.a + " " + SYMBOL[state.topic] + " " + q.b + " =";
+    $("question").classList.remove("small");
+    $("suffix").textContent = "";
+    prompt.classList.add("hidden");
+    return;
+  }
+  const v = q.view();
+  if (v.hint) {
+    const d = document.createElement("div");
+    d.className = "hint";
+    d.textContent = v.hint;
+    prompt.appendChild(d);
+  }
+  (v.lines || []).forEach((line) => {
+    const d = document.createElement("div");
+    d.textContent = line;
+    prompt.appendChild(d);
+  });
+  if (v.grid) {
+    const g = document.createElement("div");
+    g.className = "fruit-grid";
+    g.style.gridTemplateColumns = "repeat(" + v.grid.cols + ", 1fr)";
+    g.setAttribute("role", "img");
+    g.setAttribute("aria-label", v.grid.rows + " × " + v.grid.cols);
+    for (let i = 0; i < v.grid.rows * v.grid.cols; i++) {
+      const cell = document.createElement("span");
+      cell.textContent = v.grid.fruit;
+      g.appendChild(cell);
+    }
+    prompt.appendChild(g);
+  }
+  prompt.classList.toggle("hidden", !prompt.childElementCount);
+  $("question").textContent = v.ask;
+  $("question").classList.toggle("small", !!v.small);
+  $("suffix").textContent = v.suffix || "";
+}
+
 function setTyped(value) {
   state.typed = value.slice(0, 10);
   $("answerBox").textContent = state.typed || "?";
@@ -753,6 +943,10 @@ function show(id) {
 async function startRound() {
   const run = ++state.run;
   Object.assign(state, { sessionId: uuid(), index: 0, score: 0, runMs: 0, penalties: 0, shownAt: 0, current: null });
+  // Mixed: two of each task type per course, in random order.
+  state.mixQueue = shuffle(TASK_TYPES.flatMap((type) => [type, type]));
+  $("prompt").classList.add("hidden");
+  $("suffix").textContent = "";
   buildCourse();
   $("question").textContent = "";
   $("feedback").textContent = "";
@@ -776,8 +970,7 @@ async function startRound() {
 function nextQuestion() {
   state.index++;
   state.current = makeQuestion(state.topic, state.level);
-  const q = state.current;
-  $("question").textContent = q.a + " " + SYMBOL[state.topic] + " " + q.b + " =";
+  renderQuestion(state.current);
   $("feedback").textContent = "";
   $("feedback").className = "feedback";
   setTyped("");

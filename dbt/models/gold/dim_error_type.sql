@@ -6,6 +6,6 @@ select
     label,
     description,
     example,
-    error_type in ('carry_borrow', 'reversed_digits', 'wrong_operation', 'table_neighbor')
+    error_type in ('carry_borrow', 'reversed_digits', 'wrong_operation', 'table_neighbor', 'unit_slip')
         as is_systematic
 from {{ ref('error_types') }}

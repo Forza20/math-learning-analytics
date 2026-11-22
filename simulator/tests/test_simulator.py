@@ -106,3 +106,69 @@ def test_sessions_have_consecutive_question_indexes():
         by_session.setdefault(e["session_id"], []).append(e["question_index"])
     for indexes in by_session.values():
         assert indexes == list(range(1, len(indexes) + 1))
+
+
+# ---- Mixed puzzles ------------------------------------------------------------
+
+from questions import MIXED, TASK_TYPES  # noqa: E402
+from simulate import MIXED_FROM  # noqa: E402
+
+MIXED_CHECK = {
+    # Recompute the answer from operand_a and operand_b where they define it.
+    "sequence": lambda q: q.answer in (q.a + q.b, q.a - q.b),
+    "unit": lambda q: q.a in (24, 60, 100, 1000) and q.b == 0,
+    "symbol": lambda q: q.answer == (q.a // 2 if q.b == 0 else q.a - q.b),
+    "price": lambda q: q.b >= 1,
+    "array": lambda q: q.answer == q.a * q.b,
+}
+
+
+@pytest.mark.parametrize("task_type", TASK_TYPES)
+@pytest.mark.parametrize("level", LEVELS)
+def test_mixed_tasks_are_consistent_and_fit_db_constraints(task_type, level):
+    rng = random.Random(3)
+    for _ in range(3000):
+        q = make_question(MIXED, level, rng, task_type)
+        assert q.topic == MIXED and q.task_type == task_type
+        assert MIXED_CHECK[task_type](q)
+        assert all(isinstance(v, int) and v >= 0 for v in (q.a, q.b, q.answer))
+        assert q.a <= 1000 and q.b <= 1000 and q.answer <= 1_000_000
+        # Matches the bronze check: printable ASCII, 1-80 characters.
+        assert re.fullmatch(r"[ -~]{1,80}", q.text), q.text
+
+
+def test_unit_examples():
+    rng = random.Random(0)
+    for _ in range(500):
+        q = make_question(MIXED, 3, rng, "unit")
+        amount, src, _, _, dst = q.text.split()
+        factor = {("h", "min"): 60, ("km", "m"): 1000, ("kg", "g"): 1000, ("m", "cm"): 100, ("min", "s"): 60}[(src, dst)]
+        assert q.answer == round(float(amount) * factor)
+
+
+@pytest.mark.parametrize("task_type", TASK_TYPES)
+def test_mixed_wrong_answers_are_wrong_and_valid(task_type):
+    rng = random.Random(4)
+    seen = set()
+    for level in LEVELS:
+        for _ in range(2000):
+            q = make_question(MIXED, level, rng, task_type)
+            value, error_type = make_wrong_answer(q, rng)
+            assert value != q.answer and value >= 0 and len(str(value)) <= 10
+            seen.add(error_type)
+    assert seen == set(ERROR_WEIGHTS[task_type])
+
+
+def test_mixed_only_from_its_start_date():
+    before, _ = simulate_day(date(2026, 11, 21), 40, seed=1)
+    after, _ = simulate_day(MIXED_FROM, 40, seed=1)
+    assert {e["topic"] for e in before} <= set(TOPICS)
+    assert all(e["task_type"] is None and e["question_text"] is None for e in before)
+    mixed = [e for e in after if e["topic"] == MIXED]
+    assert mixed and all(e["task_type"] in TASK_TYPES and e["question_text"] for e in mixed)
+    # Two of each task type per completed mixed round.
+    rounds = {}
+    for e in mixed:
+        rounds.setdefault(e["session_id"], []).append(e["task_type"])
+    full = [types for types in rounds.values() if len(types) == 10]
+    assert full and all(sorted(types) == sorted(TASK_TYPES * 2) for types in full)

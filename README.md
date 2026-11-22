@@ -16,7 +16,7 @@ The game is the data source. The pipeline is the point.
 
 - **An installable app (PWA)** that works offline: answers given without a connection are queued and sent later.
 - **An event stream I designed myself**: the game sends one row per answer to Postgres. The browser may insert, nothing else.
-- **A simulator** for realistic players, with six error types, tested with `pytest` and idempotent per day.
+- **A simulator** for realistic players, with seven error types, tested with `pytest` and idempotent per day.
 - **A dbt medallion**: silver deduplicates retried events and classifies every wrong answer into an error type; gold is a star schema plus marts. About 50 tests, including unit tests and a reconciliation check.
 - **A nightly GitHub Actions run** that simulates, builds, tests and publishes everything.
 - **A static dashboard** with no database access from the browser.

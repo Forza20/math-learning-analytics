@@ -108,6 +108,18 @@ models:
   - name: mart_daily_activity
     description: Sessions, answers and rates per day and source, including days without play.
 
+  - name: mart_task_types
+    description: Correct, wrong and skip rates and answer times per source, task type and level, for topic 'mixed'.
+    columns:
+      - name: task_type
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['sequence', 'unit', 'symbol', 'price', 'array']
+      - name: correct_rate
+        data_tests: [not_null]
+
 unit_tests:
   - name: mart_dropoff_counts_reach_and_quits
     description: Two rounds, one completed and one stopped after question 3.

@@ -29,6 +29,10 @@ typed as (
         source,
         language,
         topic,
+        -- Set for topic 'mixed' only (from 2026-11-22). The meaning of operand_a and
+        -- operand_b per task type is listed in supabase/migrations/0002_mixed_topic.sql.
+        task_type,
+        question_text,
         level,
         question_index,
         operand_a,
@@ -68,6 +72,8 @@ select
     source,
     language,
     topic,
+    task_type,
+    question_text,
     level,
     rules_version,
     question_index,
@@ -97,13 +103,24 @@ select
                 or (topic = 'subtraction' and given_answer = operand_a + operand_b)
                 or (topic = 'multiplication' and given_answer = operand_a + operand_b)
                 or (topic = 'division' and given_answer in (operand_a - operand_b, operand_a * operand_b))
+                -- Mixed puzzles: went the wrong way in a sequence (16, 12, 8, 4 -> 0),
+                -- added instead of halving or subtracting, used the count instead of
+                -- dividing by it, or added rows and columns.
+                or (task_type = 'sequence' and given_answer = 2 * operand_a - correct_answer)
+                or (task_type = 'symbol' and given_answer = operand_a + operand_b)
+                or (task_type = 'price' and given_answer in (operand_a - operand_b, operand_a + operand_b))
+                or (task_type = 'array' and given_answer = operand_a + operand_b)
                 then 'wrong_operation'
-            when topic = 'multiplication'
+            when (topic = 'multiplication' or task_type = 'array')
                 and given_answer in (
                     operand_a * (operand_b - 1), operand_a * (operand_b + 1),
                     (operand_a - 1) * operand_b, (operand_a + 1) * operand_b
                 )
                 then 'table_neighbor'
+            -- A unit conversion off by a power of ten: 3 km = 300 m, 200 cm = 20 m.
+            when task_type = 'unit'
+                and (given_answer = correct_answer * 10 or given_answer * 10 = correct_answer)
+                then 'unit_slip'
             -- More digits than the answer and over twice its size: a guess or a stray key.
             when length(given_answer_raw) > length(correct_answer::text)
                 and given_answer > 2 * correct_answer

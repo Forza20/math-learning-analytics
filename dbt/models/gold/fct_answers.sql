@@ -11,6 +11,8 @@ select
     a.source,
     a.language,
     a.topic,
+    a.task_type,
+    a.question_text,
     a.level,
     a.rules_version,
     a.question_index,

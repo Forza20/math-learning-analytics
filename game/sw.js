@@ -4,7 +4,7 @@
 // and the answer events sent to Supabase) goes straight to the network.
 // Bump CACHE when any of the files below change, so players get the new version.
 
-const CACHE = "math-trail-v2";
+const CACHE = "math-trail-v3";
 const APP_SHELL = [
   "./",
   "./index.html",

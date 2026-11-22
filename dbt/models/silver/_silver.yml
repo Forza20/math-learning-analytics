@@ -20,6 +20,22 @@ models:
           - accepted_values:
               arguments:
                 values: ['real', 'simulated']
+      - name: topic
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['addition', 'subtraction', 'multiplication', 'division', 'mixed']
+      - name: task_type
+        description: >
+          Kind of mixed puzzle. Set for topic 'mixed' only. The meaning of operand_a
+          and operand_b per task type is in supabase/migrations/0002_mixed_topic.sql.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['sequence', 'unit', 'symbol', 'price', 'array']
+      - name: question_text
+        description: Language-neutral ASCII form of a mixed puzzle, for example "A+A=12; A=?".
       - name: rules_version
         description: 1 for events played under the old ages 6-10 levels, 2 from var rules_v2_from.
         data_tests:
@@ -41,11 +57,11 @@ models:
         description: >
           Set only when outcome is wrong. First matching rule wins: off_by_one,
           carry_borrow, reversed_digits, wrong_operation, table_neighbor,
-          implausible, other.
+          unit_slip, implausible, other.
         data_tests:
           - accepted_values:
               arguments:
-                values: ['off_by_one', 'carry_borrow', 'reversed_digits', 'wrong_operation', 'table_neighbor', 'implausible', 'other']
+                values: ['off_by_one', 'carry_borrow', 'reversed_digits', 'wrong_operation', 'table_neighbor', 'unit_slip', 'implausible', 'other']
       - name: is_too_fast
         description: Non-skip answered in under 250 ms. Likely not a human.
       - name: is_clock_skewed
@@ -94,6 +110,39 @@ unit_tests:
         00000000-0000-4000-8000-000000000008,wrong,implausible
         00000000-0000-4000-8000-000000000009,wrong,other
         00000000-0000-4000-8000-000000000010,skipped,
+
+  - name: answers_classifies_mixed_puzzle_errors
+    description: The mixed-puzzle rules fire on known examples; generic rules still come first.
+    model: answers
+    given:
+      - input: source('bronze', 'answer_events')
+        format: csv
+        rows: |
+          event_id,session_id,source,language,topic,task_type,question_text,level,question_index,operand_a,operand_b,correct_answer,given_answer,response_ms,client_ts,received_at
+          00000000-0000-4000-8000-000000000101,80000000-0000-4000-8000-000000000000,real,da,mixed,sequence,"16, 12, 8, 4, ?",2,1,4,4,0,8,3000,2026-11-22 15:00:00+00,2026-11-22 15:00:01+00
+          00000000-0000-4000-8000-000000000102,80000000-0000-4000-8000-000000000000,real,da,mixed,unit,3 km = ? m,1,2,1000,0,3000,300,3000,2026-11-22 15:00:00+00,2026-11-22 15:00:01+00
+          00000000-0000-4000-8000-000000000103,80000000-0000-4000-8000-000000000000,real,da,mixed,unit,200 cm = ? m,2,3,100,0,2,20,3000,2026-11-22 15:00:00+00,2026-11-22 15:00:01+00
+          00000000-0000-4000-8000-000000000104,80000000-0000-4000-8000-000000000000,real,da,mixed,symbol,A+A=12; A=?,1,4,12,0,6,12,3000,2026-11-22 15:00:00+00,2026-11-22 15:00:01+00
+          00000000-0000-4000-8000-000000000105,80000000-0000-4000-8000-000000000000,real,da,mixed,symbol,A+A=12; A+B=13; B=?,2,5,13,6,7,19,3000,2026-11-22 15:00:00+00,2026-11-22 15:00:01+00
+          00000000-0000-4000-8000-000000000106,80000000-0000-4000-8000-000000000000,real,da,mixed,price,4 banana=20; banana=?,1,6,20,4,5,16,3000,2026-11-22 15:00:00+00,2026-11-22 15:00:01+00
+          00000000-0000-4000-8000-000000000107,80000000-0000-4000-8000-000000000000,real,da,mixed,array,3x4 grid,1,7,3,4,12,7,3000,2026-11-22 15:00:00+00,2026-11-22 15:00:01+00
+          00000000-0000-4000-8000-000000000108,80000000-0000-4000-8000-000000000000,real,da,mixed,array,3x4 grid,1,8,3,4,12,15,3000,2026-11-22 15:00:00+00,2026-11-22 15:00:01+00
+          00000000-0000-4000-8000-000000000109,80000000-0000-4000-8000-000000000000,real,da,mixed,unit,1.5 h = ? min,3,9,60,0,90,91,3000,2026-11-22 15:00:00+00,2026-11-22 15:00:01+00
+          00000000-0000-4000-8000-000000000110,80000000-0000-4000-8000-000000000000,real,da,mixed,price,4 banana=20; banana=?,1,10,20,4,5,9,3000,2026-11-22 15:00:00+00,2026-11-22 15:00:01+00
+    expect:
+      format: csv
+      rows: |
+        event_id,outcome,error_type
+        00000000-0000-4000-8000-000000000101,wrong,wrong_operation
+        00000000-0000-4000-8000-000000000102,wrong,unit_slip
+        00000000-0000-4000-8000-000000000103,wrong,unit_slip
+        00000000-0000-4000-8000-000000000104,wrong,wrong_operation
+        00000000-0000-4000-8000-000000000105,wrong,wrong_operation
+        00000000-0000-4000-8000-000000000106,wrong,wrong_operation
+        00000000-0000-4000-8000-000000000107,wrong,wrong_operation
+        00000000-0000-4000-8000-000000000108,wrong,table_neighbor
+        00000000-0000-4000-8000-000000000109,wrong,off_by_one
+        00000000-0000-4000-8000-000000000110,wrong,other
 
   - name: answers_keeps_first_copy_of_a_retried_answer
     description: A retried request stored twice keeps only the first received copy.

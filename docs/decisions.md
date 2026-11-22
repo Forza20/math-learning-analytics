@@ -57,6 +57,22 @@ headhunter can still just click the link. A native app was rejected: weeks of wo
 Apple fee, store review for a children's app, and reviewers would have to install it.
 Offline answers are queued and sent later; silver's deduplication makes resends safe.
 
+**2026-11-22: a fifth topic, mixed puzzles.** Decision 8 limited the content to +, −, ×, ÷.
+To match what the child meets in school worksheets, a fifth topic "Mixed" (DA "Blandet") adds
+five task types: number sequences, unit conversion, symbol puzzles, price puzzles and fruit grids.
+The puzzles are written for the game in the worksheets' style; no worksheet content is copied.
+- A separate topic, not mixed into the four others, so their data stays comparable over time.
+- Migration `0002` adds topic `mixed` and two columns: `task_type` and `question_text`
+  (printable ASCII, at most 80 characters, so the browser cannot store arbitrary text).
+  `operand_a` and `operand_b` keep a fixed meaning per task type, so silver classifies
+  errors without parsing text. Existing rows are unchanged.
+- New error type `unit_slip` (a power-of-ten slip in a unit conversion). `wrong_operation`
+  and `table_neighbor` gained rules for the puzzle types. New mart `mart_task_types`.
+- Answers stay whole and non-negative, so the keypad needs no minus or comma key.
+  Negative sequences from the worksheets were left out for that reason.
+- The simulator plays mixed rounds only from 2026-11-22, so re-running earlier days
+  still recreates exactly the same rows (verified with a fingerprint of three old days).
+
 **2026-11-22: the round became a timed obstacle course.** To make the game more fun for a child,
 the 10 questions are now 10 obstacles on a street course, and the goal is the fastest time.
 A wrong answer adds 10 seconds; a skip counts as wrong. The look is inspired by blocky Roblox

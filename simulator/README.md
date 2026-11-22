@@ -33,14 +33,20 @@ python simulator/simulate.py --dry-run --out sample.csv
   | `off_by_one` | 56 → 57 | all |
   | `reversed_digits` | 56 → 65 | all |
   | `wrong_operation` | 7 × 8 → 15 | all |
-  | `table_neighbor` | 7 × 8 → 49 | × |
+  | `table_neighbor` | 7 × 8 → 49 | ×, fruit grids |
+  | `unit_slip` | 3 km → 300 m | unit conversion |
   | `random` | a guess, sometimes with an extra digit | all |
+
+  Mixed puzzles are weighted per task type (`ERROR_WEIGHTS` in `errors.py`).
 
 - **Skips** are more likely on hard questions and are answered fast.
 - **Quitting:** players may stop a round early, more often after several mistakes in a row.
 - **Timing:** answer time grows with level and topic. Sessions start by hour of day: weekdays peak after school (15–19), weekends are flatter.
 
 ## Idempotent runs
+
+Topic `mixed` is simulated from `MIXED_FROM` (2026-11-22). Earlier days use only the four
+original topics, so their random sequence, event IDs and rows are exactly as before.
 
 The random seed comes from the date (`--seed` overrides it), so a re-run creates the
 same event IDs. Rows are staged with `COPY` and inserted with `ON CONFLICT (event_id) DO NOTHING`,

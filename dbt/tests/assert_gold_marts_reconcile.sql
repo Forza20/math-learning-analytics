@@ -56,3 +56,17 @@ union all
 select 'mart_daily_activity answers', f.source, f.answers, m.answers
 from fact_sessions f left join daily m using (source)
 where m.answers is distinct from f.answers
+
+union all
+
+select 'mart_task_types mixed answers', f.source, f.n, m.n
+from (
+    select source, count(*) as n
+    from {{ ref('fct_answers') }}
+    where is_analysable and topic = 'mixed'
+    group by source
+) f
+left join (
+    select source, sum(answers) as n from {{ ref('mart_task_types') }} group by source
+) m using (source)
+where m.n is distinct from f.n
