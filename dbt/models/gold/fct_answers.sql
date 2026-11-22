@@ -13,6 +13,7 @@ select
     a.topic,
     a.task_type,
     a.question_text,
+    a.word,
     a.level,
     a.rules_version,
     a.question_index,
@@ -20,6 +21,7 @@ select
     a.operand_b,
     a.correct_answer,
     a.given_answer,
+    a.given_answer_raw,
     a.outcome,
     -- The times table a basic question belongs to: the larger factor for
     -- level 1 multiplication, the divisor for level 1 division.

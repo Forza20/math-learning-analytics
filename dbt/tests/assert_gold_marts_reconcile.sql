@@ -59,6 +59,13 @@ where m.answers is distinct from f.answers
 
 union all
 
+select 'mart_hardest_questions answers', f.source, f.n, m.n
+from fact_answers f
+left join (select source, sum(answers) as n from {{ ref('mart_hardest_questions') }} group by source) m using (source)
+where m.n is distinct from f.n
+
+union all
+
 select 'mart_task_types mixed answers', f.source, f.n, m.n
 from (
     select source, count(*) as n

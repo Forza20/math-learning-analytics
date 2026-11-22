@@ -120,6 +120,24 @@ models:
       - name: correct_rate
         data_tests: [not_null]
 
+  - name: mart_hardest_questions
+    description: >
+      Answers, misses (wrong or skipped) and the most common wrong answer per source,
+      topic, level and exact question: the numbers of a math question, the text of a
+      mixed puzzle, or the word of a spelling question. One row per those four
+      columns (tests/assert_hardest_questions_unique.sql).
+    columns:
+      - name: subject
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['math', 'danish']
+      - name: question
+        data_tests: [not_null]
+      - name: miss_rate
+        data_tests: [not_null]
+
 unit_tests:
   - name: mart_dropoff_counts_reach_and_quits
     description: Two rounds, one completed and one stopped after question 3.

@@ -93,6 +93,7 @@ def test_events_fit_db_constraints():
         assert 1 <= e["question_index"] <= 10
         assert 0 <= e["response_ms"] <= 600_000
         assert e["given_answer"] is None or re.fullmatch(r"\d{1,10}", e["given_answer"])
+        assert e["word"] is None
         uuid.UUID(e["session_id"])
         ids.add(e["event_id"])
         assert datetime.fromisoformat(e["client_ts"]).tzinfo is not None
@@ -172,3 +173,40 @@ def test_mixed_only_from_its_start_date():
         rounds.setdefault(e["session_id"], []).append(e["task_type"])
     full = [types for types in rounds.values() if len(types) == 10]
     assert full and all(sorted(types) == sorted(TASK_TYPES * 2) for types in full)
+
+
+# ---- Spelling ---------------------------------------------------------------
+
+from questions import SPELLING, SPELLING_WORDS, spelling_round  # noqa: E402
+from simulate import SPELLING_FROM  # noqa: E402
+
+WORD_RE = r"[a-zæøå]{1,20}"        # bronze check on word
+GIVEN_RE = r"[a-zæøåé]{1,20}"      # bronze check on a picked spelling
+
+
+def test_spelling_words_fit_db_constraints():
+    for level in LEVELS:
+        assert len(SPELLING_WORDS[level]) == 20
+        for entry in SPELLING_WORDS[level]:
+            assert len(entry) == 3 and len(set(entry)) == 3, entry
+            assert re.fullmatch(WORD_RE, entry[0])
+            assert all(re.fullmatch(GIVEN_RE, w) for w in entry)
+
+
+def test_spelling_round_has_ten_different_words():
+    words = [q.word for q in spelling_round(2, 10, random.Random(5))]
+    assert len(set(words)) == 10
+
+
+def test_spelling_only_from_its_start_date():
+    before, _ = simulate_day(SPELLING_FROM.replace(day=SPELLING_FROM.day - 1), 40, seed=1)
+    after, _ = simulate_day(SPELLING_FROM, 40, seed=1)
+    assert all(e["topic"] != SPELLING and e["word"] is None for e in before)
+    spelling = [e for e in after if e["topic"] == SPELLING]
+    assert spelling and {e["language"] for e in after} == {"da"}
+    for e in spelling:
+        assert re.fullmatch(WORD_RE, e["word"])
+        assert e["operand_a"] == len(e["word"]) and e["operand_b"] == 0 and e["correct_answer"] == 0
+        assert e["given_answer"] is None or re.fullmatch(GIVEN_RE, e["given_answer"])
+        assert e["task_type"] is None and e["question_text"] is None
+    assert any(e["given_answer"] not in (None, e["word"]) for e in spelling)

@@ -313,7 +313,7 @@ const TEXT = {
     title: "Regnestien",
     rules: "Løb forhindringsbanen! Løs 10 opgaver for at komme forbi 10 forhindringer, så hurtigt du kan. Hvert forkert svar giver 10 sekunder ekstra.",
     pickTopic: "Vælg fag", pickLevel: "Vælg niveau", start: "Start",
-    privacy: "Vi gemmer dine matematiksvar uden dit navn, så vi kan se, hvilke opgaver der er svære. Vi gemmer intet om, hvem du er. Stavesvar gemmes ikke.",
+    privacy: "Vi gemmer dine svar uden dit navn, så vi kan se, hvilke opgaver og ord der er svære. Vi gemmer intet om, hvem du er.",
     check: "OK", skip: "Spring over", quit: "Stop", sound: "Lyd til eller fra",
     yourTime: "Din tid", again: "Spil igen", menu: "Skift fag",
     spellAsk: "Hvilket ord er stavet rigtigt?", del: "Slet",
@@ -344,7 +344,7 @@ const SYMBOL = { addition: "+", subtraction: "−", multiplication: "×", divisi
 
 // Dansk: spelling for mellemtrin (ages 8–12). Each entry is [correct, wrong, wrong]:
 // words children often misspell (silent h/d/g, hv-/hj-, double consonants, -ig/-lig)
-// and two typical misspellings that are not Danish words. Game only: never sent.
+// and two typical misspellings that are not Danish words. Mirrored in simulator/questions.py.
 const WORDS = {
   1: [["hvad", "vad", "hvat"], ["hvor", "hvår", "hvorr"], ["hvem", "vem", "hvæm"], ["hvid", "hvit", "hviid"],
       ["hjem", "jem", "hjæm"], ["hjælp", "jælp", "hjelp"], ["mand", "mann", "mant"], ["kold", "koll", "kolt"],
@@ -579,19 +579,21 @@ function mathQuestion(topic, level, type) {
 
 // ---- Event tracking -----------------------------------------------------
 // One event per answer or skip. Sending never blocks the game.
-// Spelling (Dansk) is never tracked: the pipeline only takes math answers.
+// Dansk is stored as topic "spelling" (supabase/migrations/0003_spelling_topic.sql):
+// word = the correct spelling, given_answer = the spelling picked,
+// operand_a = letters in the word, operand_b and correct_answer = 0.
 function track(givenAnswer, responseMs) {
   const q = state.current;
-  if (q.topic === "danish") return;
+  const spelling = q.topic === "danish";
   const event = {
     session_id: state.sessionId,
     language: state.lang,
-    topic: q.topic,
+    topic: spelling ? "spelling" : q.topic,
     level: state.level,
     question_index: state.index,
-    operand_a: q.a,
-    operand_b: q.b,
-    correct_answer: q.answer,
+    operand_a: spelling ? [...q.word].length : q.a,
+    operand_b: spelling ? 0 : q.b,
+    correct_answer: spelling ? 0 : q.answer,
     given_answer: givenAnswer,
     response_ms: Math.min(Math.round(responseMs), 600000),
     client_ts: new Date().toISOString()
@@ -600,6 +602,7 @@ function track(givenAnswer, responseMs) {
     event.task_type = q.type;
     event.question_text = q.text;
   }
+  if (spelling) event.word = q.word;
   state.log.push(event);
   renderLog();
   send(event, 2);

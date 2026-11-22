@@ -73,6 +73,19 @@ The puzzles are written for the game in the worksheets' style; no worksheet cont
 - The simulator plays mixed rounds only from 2026-11-22, so re-running earlier days
   still recreates exactly the same rows (verified with a fingerprint of three old days).
 
+**2026-11-22: spelling answers go to the pipeline, and a "hardest questions" view.** Reverses
+"game only" for Dansk below: to see which words children misspell, the picks must be stored.
+- Migration `0003` adds topic `spelling` and a `word` column (the correct spelling). `given_answer`
+  holds the spelling picked; `operand_a` = letters in the word, `operand_b` and `correct_answer` = 0.
+  Letter checks keep browser text to Danish letters. Existing rows are unchanged.
+- Silver: a spelling answer is correct when the pick equals `word`; a wrong pick gets the new
+  error type `misspelling`. The math error rules are unchanged.
+- New mart `mart_hardest_questions`: misses (wrong or skipped) and the most common wrong answer
+  per exact question (numbers, puzzle text or word). The dashboard lists the 15 most-missed math
+  questions and words per player source, once a question has at least 10 simulated or 3 real answers.
+- The simulator plays spelling rounds, with Danish players only, from 2026-11-23, so re-running
+  earlier days recreates exactly the same rows (checked for 19, 21 and 22 November).
+
 **2026-11-22: the game is Danish only, and Dansk became multiple choice.** Changes decision 11.
 - The DA/EN toggle and all English game text were removed: the game is for Danish children at
   mellemtrin. Code, docs and the dashboard stay in English. New events always carry

@@ -25,7 +25,7 @@ models:
           - not_null
           - accepted_values:
               arguments:
-                values: ['addition', 'subtraction', 'multiplication', 'division', 'mixed']
+                values: ['addition', 'subtraction', 'multiplication', 'division', 'mixed', 'spelling']
       - name: task_type
         description: >
           Kind of mixed puzzle. Set for topic 'mixed' only. The meaning of operand_a
@@ -36,6 +36,10 @@ models:
                 values: ['sequence', 'unit', 'symbol', 'price', 'array']
       - name: question_text
         description: Language-neutral ASCII form of a mixed puzzle, for example "A+A=12; A=?".
+      - name: word
+        description: >
+          Correct spelling of the word, for topic 'spelling' only. given_answer_raw is
+          the spelling the player picked of three shown (one right, two misspellings).
       - name: rules_version
         description: 1 for events played under the old ages 6-10 levels, 2 from var rules_v2_from.
         data_tests:
@@ -55,13 +59,13 @@ models:
                 values: ['correct', 'wrong', 'skipped']
       - name: error_type
         description: >
-          Set only when outcome is wrong. First matching rule wins: off_by_one,
-          carry_borrow, reversed_digits, wrong_operation, table_neighbor,
-          unit_slip, implausible, other.
+          Set only when outcome is wrong. Spelling is always misspelling. For math
+          the first matching rule wins: off_by_one, carry_borrow, reversed_digits,
+          wrong_operation, table_neighbor, unit_slip, implausible, other.
         data_tests:
           - accepted_values:
               arguments:
-                values: ['off_by_one', 'carry_borrow', 'reversed_digits', 'wrong_operation', 'table_neighbor', 'unit_slip', 'implausible', 'other']
+                values: ['off_by_one', 'carry_borrow', 'reversed_digits', 'wrong_operation', 'table_neighbor', 'unit_slip', 'implausible', 'other', 'misspelling']
       - name: is_too_fast
         description: Non-skip answered in under 250 ms. Likely not a human.
       - name: is_clock_skewed
@@ -143,6 +147,25 @@ unit_tests:
         00000000-0000-4000-8000-000000000108,wrong,table_neighbor
         00000000-0000-4000-8000-000000000109,wrong,off_by_one
         00000000-0000-4000-8000-000000000110,wrong,other
+
+  - name: answers_classifies_spelling
+    description: A spelling answer is right only when the picked spelling is the word.
+    model: answers
+    given:
+      - input: source('bronze', 'answer_events')
+        format: csv
+        rows: |
+          event_id,session_id,source,language,topic,word,level,question_index,operand_a,operand_b,correct_answer,given_answer,response_ms,client_ts,received_at
+          00000000-0000-4000-8000-000000000201,90000000-0000-4000-8000-000000000000,real,da,spelling,hjælp,1,1,5,0,0,hjælp,2000,2026-11-22 15:00:00+00,2026-11-22 15:00:01+00
+          00000000-0000-4000-8000-000000000202,90000000-0000-4000-8000-000000000000,real,da,spelling,hjælp,1,2,5,0,0,jælp,2000,2026-11-22 15:00:00+00,2026-11-22 15:00:01+00
+          00000000-0000-4000-8000-000000000203,90000000-0000-4000-8000-000000000000,real,da,spelling,sammen,2,3,6,0,0,,2000,2026-11-22 15:00:00+00,2026-11-22 15:00:01+00
+    expect:
+      format: csv
+      rows: |
+        event_id,outcome,error_type
+        00000000-0000-4000-8000-000000000201,correct,
+        00000000-0000-4000-8000-000000000202,wrong,misspelling
+        00000000-0000-4000-8000-000000000203,skipped,
 
   - name: answers_keeps_first_copy_of_a_retried_answer
     description: A retried request stored twice keeps only the first received copy.

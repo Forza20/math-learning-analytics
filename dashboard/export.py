@@ -34,6 +34,19 @@ QUERIES = {
         select source, task_type, level, answers, correct_rate, wrong_rate, skip_rate,
                median_response_ms, task_order
         from gold.mart_task_types order by source, task_order, level""",
+    # The 15 most-missed questions per source and subject. A question needs a few
+    # answers first, so one unlucky answer does not top the list.
+    "hardest": """
+        select source, subject, topic, level, question, answers, miss_rate,
+               most_common_wrong, most_common_wrong_count, rank
+        from (
+            select h.*, row_number() over (
+                partition by source, subject order by miss_rate desc, answers desc, question) as rank
+            from gold.mart_hardest_questions h
+            where answers >= case when source = 'real' then 3 else 10 end
+        ) x
+        where rank <= 15
+        order by source, subject, rank""",
     "times_tables": """
         select source, topic, times_table, answers, correct_rate, median_response_ms
         from gold.mart_times_tables order by source, topic, times_table""",

@@ -6,4 +6,5 @@ wrong_operation,4,Wrong operation,Another operation on the same numbers,7 × 8 �
 table_neighbor,5,Times table neighbour,One factor off by one,7 × 8 → 49
 unit_slip,6,Unit slip,A unit conversion off by a power of ten,3 km → 300 m
 implausible,7,Implausible,More digits than the answer and over twice its size,956 → 4547
-other,8,Other,None of the rules above match,4 → 7
+misspelling,8,Misspelling,Spelling: picked one of the two misspellings,hjælp → jælp
+other,9,Other,None of the rules above match,4 → 7

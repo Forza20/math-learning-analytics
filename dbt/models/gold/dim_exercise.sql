@@ -16,5 +16,6 @@ select
         when 'multiplication' then 3
         when 'division' then 4
         when 'mixed' then 5
+        when 'spelling' then 6
     end as topic_order
 from {{ ref('exercise_levels') }}

@@ -33,6 +33,10 @@ typed as (
         -- operand_b per task type is listed in supabase/migrations/0002_mixed_topic.sql.
         task_type,
         question_text,
+        -- Set for topic 'spelling' only (from 2026-11-22): the correct spelling.
+        -- given_answer is then the spelling the player picked of three. See
+        -- supabase/migrations/0003_spelling_topic.sql.
+        word,
         level,
         question_index,
         operand_a,
@@ -59,6 +63,7 @@ with_outcome as (
         *,
         case
             when given_answer_raw is null then 'skipped'
+            when topic = 'spelling' then case when given_answer_raw = word then 'correct' else 'wrong' end
             when given_answer = correct_answer then 'correct'
             else 'wrong'
         end as outcome
@@ -74,6 +79,7 @@ select
     topic,
     task_type,
     question_text,
+    word,
     level,
     rules_version,
     question_index,
@@ -88,6 +94,9 @@ select
     -- First matching rule wins, so the order is part of the definition.
     case when outcome = 'wrong' then
         case
+            -- Spelling has one error type: the player picked a misspelling.
+            when topic = 'spelling'
+                then 'misspelling'
             when abs(given_answer - correct_answer) = 1
                 then 'off_by_one'
             when topic = 'addition'

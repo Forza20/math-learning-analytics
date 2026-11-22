@@ -33,6 +33,8 @@ class Question:
     answer: int
     task_type: Optional[str] = None      # set for topic "mixed" only
     text: Optional[str] = None           # question_text, ASCII, for topic "mixed" only
+    word: Optional[str] = None           # correct spelling, for topic "spelling" only
+    wrong: tuple[str, ...] = ()          # the two misspellings shown next to it
 
 
 def make_question(topic: str, level: int, rng: random.Random, task_type: Optional[str] = None) -> Question:
@@ -150,3 +152,88 @@ def make_mixed(task_type: str, level: int, rng: random.Random) -> Question:
         return q(rows, cols, rows * cols, f"{rows}x{cols} grid")
 
     raise ValueError(f"unknown task type: {task_type}")
+
+
+# ---- Spelling (the game's "Dansk") --------------------------------------------
+# Mirrors WORDS in game/index.html: [correct, wrong, wrong] per word, 20 words per
+# level. Stored as topic "spelling" (supabase/migrations/0003_spelling_topic.sql):
+# operand_a = letters in the word, operand_b = 0, correct_answer = 0.
+SPELLING = "spelling"
+SPELLING_WORDS = {
+    1: (
+        ("hvad", "vad", "hvat"),
+        ("hvor", "hvår", "hvorr"),
+        ("hvem", "vem", "hvæm"),
+        ("hvid", "hvit", "hviid"),
+        ("hjem", "jem", "hjæm"),
+        ("hjælp", "jælp", "hjelp"),
+        ("mand", "mann", "mant"),
+        ("kold", "koll", "kolt"),
+        ("sjov", "sjou", "schov"),
+        ("skole", "skolle", "sgole"),
+        ("vejr", "veir", "vejjer"),
+        ("øje", "øie", "øjje"),
+        ("ord", "or", "ordt"),
+        ("bord", "bordt", "boord"),
+        ("gul", "gull", "guhl"),
+        ("rød", "rødd", "røed"),
+        ("hund", "hunnd", "hundt"),
+        ("kage", "kaje", "kaage"),
+        ("tog", "tou", "toug"),
+        ("sne", "snee", "snæ"),
+    ),
+    2: (
+        ("først", "førsd", "førs"),
+        ("sidst", "sist", "sitst"),
+        ("morgen", "morn", "moren"),
+        ("aften", "aftn", "avten"),
+        ("sommer", "somer", "sommar"),
+        ("vinter", "vintter", "vindter"),
+        ("tirsdag", "tisdag", "tirsdaw"),
+        ("onsdag", "onsda", "ondsdag"),
+        ("lørdag", "lørda", "lørrdag"),
+        ("sammen", "samen", "sammén"),
+        ("hjerte", "jerte", "hjærte"),
+        ("dejlig", "dejli", "dajlig"),
+        ("venner", "vener", "vænner"),
+        ("mærkelig", "mærkeli", "merkelig"),
+        ("rigtig", "rigti", "rikti"),
+        ("ligesom", "lisom", "ligsom"),
+        ("bjerg", "bjærg", "bjerr"),
+        ("nøgle", "nøjle", "nøgel"),
+        ("spørge", "spørre", "spøre"),
+        ("cykel", "cykkel", "sykel"),
+    ),
+    3: (
+        ("selvfølgelig", "selfølgelig", "selvfølgli"),
+        ("desværre", "desvære", "disværre"),
+        ("egentlig", "egenlig", "ejentlig"),
+        ("overraskelse", "overaskelse", "overraskelsse"),
+        ("interessant", "interresant", "intressant"),
+        ("efterhånden", "efterhånen", "efterhonden"),
+        ("hurtigt", "hurtit", "hurtikt"),
+        ("nødvendig", "nøvendig", "nødvenig"),
+        ("tilfældigvis", "tilfældivis", "tilfeldigvis"),
+        ("fødselsdag", "fødselsda", "føselsdag"),
+        ("chokolade", "sjokolade", "chokoladde"),
+        ("giraf", "giraff", "schiraf"),
+        ("restaurant", "restaurang", "restorant"),
+        ("ambulance", "ambulanse", "ampulance"),
+        ("bibliotek", "bibiotek", "bibliotæk"),
+        ("tørklæde", "tørklede", "tørkæde"),
+        ("køleskab", "køleskap", "kølleskab"),
+        ("hovedpine", "hovepine", "hoveddpine"),
+        ("pludselig", "plutselig", "pludseli"),
+        ("spændende", "spænende", "spendende"),
+    ),
+}
+
+
+def make_spelling(level: int, entry: tuple[str, str, str]) -> Question:
+    word, *wrong = entry
+    return Question(SPELLING, level, len(word), 0, 0, word=word, wrong=tuple(wrong))
+
+
+def spelling_round(level: int, count: int, rng: random.Random) -> list[Question]:
+    """Different words for one round, as in the game."""
+    return [make_spelling(level, e) for e in rng.sample(SPELLING_WORDS[level], count)]

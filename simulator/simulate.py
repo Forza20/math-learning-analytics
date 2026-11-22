@@ -25,13 +25,16 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from errors import make_wrong_answer
-from questions import LEVELS, MIXED, TASK_TYPES, TOPICS, Question, make_question
+from questions import LEVELS, MIXED, SPELLING, SPELLING_WORDS, TASK_TYPES, TOPICS, Question, make_question, spelling_round
 
 LOCAL_TZ = ZoneInfo("Europe/Copenhagen")
 QUESTIONS_PER_ROUND = 10
 # The game got the "mixed" topic on this day. Earlier days are simulated with the
 # four original topics only, so a re-run recreates exactly the same rows.
 MIXED_FROM = date(2026, 11, 22)
+# The game started sending spelling ("Dansk") answers on 2026-11-22 and became Danish
+# only that day. The first full day is simulated with spelling and Danish players.
+SPELLING_FROM = date(2026, 11, 23)
 # Pause the game shows after an answer before the next question (game/index.html).
 PAUSE_CORRECT_MS = 700
 PAUSE_OTHER_MS = 1600
@@ -39,7 +42,7 @@ PAUSE_OTHER_MS = 1600
 COLUMNS = [
     "event_id", "session_id", "source", "language", "topic", "level", "question_index",
     "operand_a", "operand_b", "correct_answer", "given_answer", "response_ms", "client_ts",
-    "task_type", "question_text",
+    "task_type", "question_text", "word",
 ]
 
 # Relative activity per local hour 0-23. Weekdays peak after school.
@@ -47,18 +50,21 @@ HOUR_WEIGHTS_WEEKDAY = [0, 0, 0, 0, 0, 0, 1, 3, 2, 1, 1, 1, 2, 2, 4, 8, 10, 9, 8
 HOUR_WEIGHTS_WEEKEND = [0, 0, 0, 0, 0, 0, 0, 1, 3, 5, 6, 6, 5, 5, 5, 6, 6, 6, 5, 5, 4, 2, 1, 0]
 
 # How much each topic and level lowers the chance of a correct answer.
-TOPIC_DIFFICULTY = {"addition": 0.00, "subtraction": 0.05, "multiplication": 0.10, "division": 0.15, "mixed": 0.08}
+TOPIC_DIFFICULTY = {"addition": 0.00, "subtraction": 0.05, "multiplication": 0.10, "division": 0.15, "mixed": 0.08,
+                    "spelling": -0.05}  # picking one of three is easier than typing an answer
 LEVEL_DIFFICULTY = {1: 0.00, 2: 0.15, 3: 0.30}
 # Typical seconds to answer, before player speed and noise.
 BASE_SECONDS = {1: 4.0, 2: 8.0, 3: 13.0}
-TOPIC_TIME = {"addition": 1.0, "subtraction": 1.1, "multiplication": 1.2, "division": 1.4, "mixed": 1.5}
+TOPIC_TIME = {"addition": 1.0, "subtraction": 1.1, "multiplication": 1.2, "division": 1.4, "mixed": 1.5,
+              "spelling": 0.6}
 # Mixed puzzles: extra difficulty per task type. Two-step symbol and price puzzles
 # and half units are the hard ones; counting a grid is the easiest.
 TASK_DIFFICULTY = {"sequence": 0.00, "unit": 0.06, "symbol": 0.04, "price": 0.08, "array": -0.08}
 
 
 def topics_for(day: date) -> tuple[str, ...]:
-    return TOPICS + (MIXED,) if day >= MIXED_FROM else TOPICS
+    topics = TOPICS + (MIXED,) if day >= MIXED_FROM else TOPICS
+    return topics + (SPELLING,) if day >= SPELLING_FROM else topics
 
 
 @dataclass
@@ -71,13 +77,18 @@ class Player:
 
 
 def make_player(rng: random.Random, topics: tuple[str, ...] = TOPICS) -> Player:
-    return Player(
+    player = Player(
         skill=rng.betavariate(5, 2.5),
         topic_bonus={t: rng.gauss(0, 0.08) for t in topics},
         speed=rng.lognormvariate(0, 0.25),
         persistence=rng.betavariate(4, 1.5),
         language="da" if rng.random() < 0.7 else "en",
     )
+    # The game is Danish only from the day spelling arrived. The random draw above
+    # still happens, so earlier days keep exactly the same sequence.
+    if SPELLING in topics:
+        player.language = "da"
+    return player
 
 
 def pick_level(player: Player, rng: random.Random) -> int:
@@ -114,6 +125,7 @@ def _table_difficulty(a: int, b: int) -> float:
 # Average table difficulty at level 1, so centring keeps each level's overall difficulty.
 _MUL_L1_MEAN = sum(_table_difficulty(a, b) for a in range(2, 11) for b in range(1, 11)) / 90
 _DIV_L1_MEAN = sum(FACTOR_DIFFICULTY[d] for d in range(2, 11)) / 9
+_SPELL_MEAN = {lv: sum(len(e[0]) for e in SPELLING_WORDS[lv]) / len(SPELLING_WORDS[lv]) for lv in LEVELS}
 
 
 def question_difficulty(q: Question) -> float:
@@ -131,6 +143,9 @@ def question_difficulty(q: Question) -> float:
         return FACTOR_DIFFICULTY.get(q.b, 0.0) - _DIV_L1_MEAN
     if q.task_type:
         return TASK_DIFFICULTY[q.task_type]
+    if q.topic == SPELLING:
+        # Longer words are harder, centred on the level's average length.
+        return 0.02 * (len(q.word) - _SPELL_MEAN[q.level])
     return 0.0
 
 
@@ -175,20 +190,25 @@ def simulate_round(player: Player, topic: str, level: int, start: datetime,
     mistakes_in_a_row = 0
     # Mixed: two of each task type per round, in random order, as in the game.
     tasks = rng.sample(TASK_TYPES * 2, len(TASK_TYPES) * 2) if topic == MIXED else None
+    # Spelling: ten different words, as in the game.
+    words = spelling_round(level, QUESTIONS_PER_ROUND, rng) if topic == SPELLING else None
 
     for index in range(1, QUESTIONS_PER_ROUND + 1):
         if index > 1 and rng.random() < chance_quit(player, mistakes_in_a_row):
             stats["rounds_quit"] += 1
             break
 
-        q = make_question(topic, level, rng, tasks[index - 1] if tasks else None)
+        q = words[index - 1] if words else make_question(topic, level, rng, tasks[index - 1] if tasks else None)
         p = chance_correct(player, q, index)
         p_skip = 0.02 + 0.10 * (1 - p)
         roll = rng.random()
         if roll < p_skip:
             outcome, given = "skipped", None
         elif roll < p_skip + (1 - p_skip) * p:
-            outcome, given = "correct", str(q.answer)
+            outcome, given = "correct", q.word or str(q.answer)
+        elif q.word:
+            outcome, given = "wrong", rng.choice(q.wrong)
+            stats["error:misspelling"] += 1
         else:
             value, error_type = make_wrong_answer(q, rng)
             outcome, given = "wrong", str(value)
@@ -213,6 +233,7 @@ def simulate_round(player: Player, topic: str, level: int, start: datetime,
             "client_ts": clock.isoformat(timespec="milliseconds"),
             "task_type": q.task_type,
             "question_text": q.text,
+            "word": q.word,
         })
         clock += timedelta(milliseconds=PAUSE_CORRECT_MS if outcome == "correct" else PAUSE_OTHER_MS)
         mistakes_in_a_row = 0 if outcome == "correct" else mistakes_in_a_row + 1
