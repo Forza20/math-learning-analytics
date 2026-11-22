@@ -73,6 +73,30 @@ The puzzles are written for the game in the worksheets' style; no worksheet cont
 - The simulator plays mixed rounds only from 2026-11-22, so re-running earlier days
   still recreates exactly the same rows (verified with a fingerprint of three old days).
 
+**2026-11-22: two subjects, Matematik and Dansk, and a dinosaur reward.** The start screen
+now offers only two subjects, the two the game is built around for mellemtrin.
+- **Matematik** replaces the five topic buttons. One course mixes them: two each of +, −, ×, ÷
+  and two mixed puzzles. Each event still carries its own `topic`, so the bronze schema, the
+  simulator and the per-answer dbt models are unchanged and old and new rows stay comparable.
+  Known gap: `silver.sessions` takes a session's topic from its first answer, so for new real
+  rounds the session-level topic (and `mart_dropoff`) is only the first question's topic.
+- **Dansk** is spelling only: look at a word, it is covered, then type it on a Danish letter
+  keyboard. 60 words in three levels. This extends decision 8 (math only) for the game, but not
+  for the pipeline: spelling answers are checked in the game and never sent, so no migration.
+- **Reward**: after every finished course the end screen shows a dinosaur with a pizza and heart
+  sunglasses, drawn as SVG in code (no image file).
+- Best times are kept per subject and level; old per-topic best times are no longer shown.
+
+**2026-11-22: sound in the game.** To make the course more fun for a child: looping background
+music from the start of a round, and one sound each for a right answer, a wrong or skipped answer,
+moving on to the next obstacle, and reaching the goal. The style is retro 8-bit platform games
+(pulse and triangle waves); every melody is original. Choices made along the way:
+- Sound is made in code with the Web Audio API (`game/sound.js`), not sound files: nothing to
+  download or license, it works offline with one extra cached file, and the 8-bit style is
+  exactly what simple oscillators produce.
+- A mute button on the course; the choice stays in `localStorage` and is never sent.
+- Sound pauses when the app goes to the background. No change to events, bronze or dbt.
+
 **2026-11-22: the round became a timed obstacle course.** To make the game more fun for a child,
 the 10 questions are now 10 obstacles on a street course, and the goal is the fastest time.
 A wrong answer adds 10 seconds; a skip counts as wrong. The look is inspired by blocky Roblox

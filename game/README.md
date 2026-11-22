@@ -1,12 +1,23 @@
 # Game: Math Trail
 
 A single `index.html` with no dependencies and no build step. Open it in a browser to play.
+`sound.js` makes the 8-bit music and sound effects in code with the Web Audio API (no sound files).
+The 🔊 button on the course turns sound off; the choice is kept on the device.
 
 ## What it does
 
-- Ages 8–12. Topics: addition, subtraction, multiplication, division and mixed puzzles. 3 levels each.
-- Mixed puzzles (`MIXED` in `index.html`, mirrored in `simulator/questions.py`) has five task types,
-  two of each per course in random order: number sequences, unit conversion (km, m, cm, kg, g,
+- Ages 8–12. Two subjects, 3 levels each:
+  - **Matematik**: one course mixes all math topics: two each of addition, subtraction,
+    multiplication and division, and two mixed puzzles of different task types, in random order.
+    Each answer is still logged with its own `topic`, so bronze and dbt are unchanged.
+    Note: `silver.sessions` takes a session's topic from its first answer.
+  - **Dansk**: spelling. The word is shown (3 / 2.5 / 2 s by level), then covered, and the player
+    types it on a Danish letter keyboard (look, cover, write). 60 words in `WORDS`, 20 per level,
+    chosen from words mellemtrin children often misspell. Spelling answers are not sent anywhere.
+- After every finished course, the end screen shows a dinosaur holding a pizza and wearing heart
+  sunglasses, drawn as inline SVG in code (`dinoSvg()`).
+- Mixed puzzles (`MIXED` in `index.html`, mirrored in `simulator/questions.py`) has five task types:
+  number sequences, unit conversion (km, m, cm, kg, g,
   hours, minutes, seconds, days; halves at Hard), symbol puzzles (⭐ + ⭐ = 12), price puzzles
   with baskets of fruit, and counting a grid of fruit (rows × columns). All answers are whole numbers.
 - A round is an obstacle course with 10 obstacles, one question each. The goal is the fastest time.
@@ -17,7 +28,7 @@ A single `index.html` with no dependencies and no build step. Open it in a brows
   so each question still gives exactly one event.
 - The player types the answer on an on-screen keypad (a physical keyboard also works), or skips.
   The keypad keeps the phone keyboard from covering the course.
-- Best time per topic and level is kept in `localStorage` on the device only. It is never sent.
+- Best time per subject and level is kept in `localStorage` on the device only. It is never sent.
 - Graphics: a bright, blocky sunny-town look (flat colours, thick outlines, a block-figure runner),
   drawn with CSS and inline SVG. No images or fonts are loaded.
 - DA/EN toggle. The default follows the browser language.

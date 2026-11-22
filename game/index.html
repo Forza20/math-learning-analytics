@@ -187,9 +187,16 @@
   .key.del { background: #ffd84d; }
   .key.ok { background: var(--accent); color: #fff; text-shadow: 0 2px 0 rgba(0,0,0,.25); }
   .key:disabled { opacity: .45; cursor: not-allowed; }
+  /* Dansk: a Danish letter keyboard, 11 keys per row */
+  .keypad.letters { grid-template-columns: repeat(11, 1fr); gap: 4px; }
+  .keypad.letters .key { min-height: 46px; font-size: 1.05rem; padding: 0; border-width: 2px; border-radius: 8px; box-shadow: 0 3px 0 var(--line); }
+  .keypad.letters .key.ok { grid-column: span 3; }
+  .spell-word { font-size: clamp(1.75rem, 9vw, 2.5rem); letter-spacing: .04em; }
 
   /* ---- End screen ----------------------------------------------------- */
-  .trophy { font-size: 3rem; text-align: center; line-height: 1; }
+  .dino { display: block; width: min(220px, 60vw); height: auto; margin: 0 auto; }
+  .dino .bob { animation: dinoBob 1.6s ease-in-out infinite; transform-origin: 110px 200px; }
+  @keyframes dinoBob { 50% { transform: translateY(-5px) rotate(-1.5deg); } }
   .score { font-size: 3rem; font-weight: 900; text-align: center; margin: 4px 0; font-variant-numeric: tabular-nums; }
   .breakdown { text-align: center; font-weight: 700; color: var(--muted); margin: 0; font-variant-numeric: tabular-nums; }
   .record { text-align: center; font-weight: 900; margin: 8px 0 0; color: var(--accent-dark); }
@@ -201,7 +208,7 @@
   .status { font-variant-numeric: tabular-nums; }
 
   @media (prefers-reduced-motion: reduce) {
-    .sprite.running .leg, .sprite.running .arm, .banner.show, .obstacle.hit { animation: none !important; }
+    .sprite.running .leg, .sprite.running .arm, .banner.show, .obstacle.hit, .dino .bob { animation: none !important; }
   }
 </style>
 </head>
@@ -235,6 +242,7 @@
       <button class="btn secondary small" id="quitBtn" type="button" aria-label="Stop">✕</button>
       <span class="pill" id="qCounter"></span>
       <span class="pill clock" id="clock" aria-label="Time">0:00.0</span>
+      <button class="btn secondary small" id="muteBtn" type="button" aria-label="Sound">🔊</button>
       <button class="btn secondary small" id="skipBtn" type="button" aria-label="Skip">⏭</button>
     </div>
     <div class="scene" id="scene" aria-hidden="true">
@@ -266,19 +274,13 @@
       </div>
       <div class="feedback" id="feedback" role="status"></div>
     </div>
-    <div class="keypad" id="keypad">
-      <button class="key" data-key="1">1</button><button class="key" data-key="2">2</button><button class="key" data-key="3">3</button>
-      <button class="key" data-key="4">4</button><button class="key" data-key="5">5</button><button class="key" data-key="6">6</button>
-      <button class="key" data-key="7">7</button><button class="key" data-key="8">8</button><button class="key" data-key="9">9</button>
-      <button class="key del" data-key="del" aria-label="Delete">⌫</button>
-      <button class="key" data-key="0">0</button>
-      <button class="key ok" data-key="ok" id="submitBtn" data-t="check">Check</button>
-    </div>
+    <!-- Filled by buildKeypad(): digits for Matematik, letters for Dansk -->
+    <div class="keypad" id="keypad"></div>
   </section>
 
   <!-- End screen -->
   <section id="end" class="card hidden">
-    <div class="trophy">🏁</div>
+    <div id="dino"></div>
     <p style="text-align:center;margin:0;font-weight:800" data-t="yourTime">Your time</p>
     <div class="score" id="finalTime"></div>
     <p class="breakdown" id="breakdown"></p>
@@ -298,6 +300,7 @@
   </details>
 </main>
 
+<script src="sound.js"></script>
 <script>
 "use strict";
 
@@ -313,11 +316,12 @@ const PENALTY_MS = 10000;            // each wrong or skipped answer adds 10 sec
 const TEXT = {
   en: {
     title: "Math Trail",
-    rules: "Run the obstacle course! Answer 10 sums to get past 10 obstacles, as fast as you can. Each wrong answer adds 10 seconds.",
-    pickTopic: "Pick a topic", pickLevel: "Pick a level", start: "Start",
-    privacy: "We save your answers without your name, so we can see which sums are tricky. Nothing is saved about who you are.",
-    check: "OK", skip: "Skip", quit: "Stop",
-    yourTime: "Your time", again: "Play again", menu: "Change topic",
+    rules: "Run the obstacle course! Answer 10 tasks to get past 10 obstacles, as fast as you can. Each wrong answer adds 10 seconds.",
+    pickTopic: "Pick a subject", pickLevel: "Pick a level", start: "Start",
+    privacy: "We save your math answers without your name, so we can see which sums are tricky. Nothing is saved about who you are. Spelling answers are not saved.",
+    check: "OK", skip: "Skip", quit: "Stop", sound: "Sound on or off",
+    yourTime: "Your time", again: "Play again", menu: "Change subject",
+    spellLook: "Look at the word…", spellWrite: "Now spell it!", del: "Delete",
     obstacle: "Obstacle", correct: "Correct! Jump!", wrongWas: "Ouch! +10 seconds. The answer is",
     skipped: "Skipped: +10 seconds. The answer is",
     go: "GO!", finish: "FINISH",
@@ -329,7 +333,7 @@ const TEXT = {
     install: "Install app",
     iosHint: "To install on iPhone or iPad: tap Share, then Add to Home Screen.",
     dashLink: "See what the data shows →",
-    topics: { addition: "Plus", subtraction: "Minus", multiplication: "Times", division: "Divide", mixed: "Mixed" },
+    subjects: { math: "Matematik", danish: "Dansk" },
     levels: { 1: "Easy", 2: "Medium", 3: "Hard" },
     next: "What comes next?", inTotal: "in total", money: "coins",
     units: { m: "m", cm: "cm", km: "km", kg: "kg", g: "g", h: ["hour", "hours"], min: "min", s: "sec", day: ["day", "days"] },
@@ -337,11 +341,12 @@ const TEXT = {
   },
   da: {
     title: "Regnestien",
-    rules: "Løb forhindringsbanen! Svar på 10 opgaver for at komme forbi 10 forhindringer, så hurtigt du kan. Hvert forkert svar giver 10 sekunder ekstra.",
-    pickTopic: "Vælg regningsart", pickLevel: "Vælg niveau", start: "Start",
-    privacy: "Vi gemmer dine svar uden dit navn, så vi kan se, hvilke opgaver der er svære. Vi gemmer intet om, hvem du er.",
-    check: "OK", skip: "Spring over", quit: "Stop",
-    yourTime: "Din tid", again: "Spil igen", menu: "Skift regningsart",
+    rules: "Løb forhindringsbanen! Løs 10 opgaver for at komme forbi 10 forhindringer, så hurtigt du kan. Hvert forkert svar giver 10 sekunder ekstra.",
+    pickTopic: "Vælg fag", pickLevel: "Vælg niveau", start: "Start",
+    privacy: "Vi gemmer dine matematiksvar uden dit navn, så vi kan se, hvilke opgaver der er svære. Vi gemmer intet om, hvem du er. Stavesvar gemmes ikke.",
+    check: "OK", skip: "Spring over", quit: "Stop", sound: "Lyd til eller fra",
+    yourTime: "Din tid", again: "Spil igen", menu: "Skift fag",
+    spellLook: "Se på ordet…", spellWrite: "Stav det nu!", del: "Slet",
     obstacle: "Forhindring", correct: "Rigtigt! Hop!", wrongWas: "Av! +10 sekunder. Svaret er",
     skipped: "Sprunget over: +10 sekunder. Svaret er",
     go: "AFSTED!", finish: "MÅL",
@@ -353,7 +358,7 @@ const TEXT = {
     install: "Installér app",
     iosHint: "Installér på iPhone eller iPad: tryk Del og derefter Føj til hjemmeskærm.",
     dashLink: "Se hvad dataene viser →",
-    topics: { addition: "Plus", subtraction: "Minus", multiplication: "Gange", division: "Division", mixed: "Blandet" },
+    subjects: { math: "Matematik", danish: "Dansk" },
     levels: { 1: "Let", 2: "Mellem", 3: "Svær" },
     next: "Hvad er det næste tal?", inTotal: "i alt", money: "kr.",
     units: { m: "m", cm: "cm", km: "km", kg: "kg", g: "g", h: ["time", "timer"], min: "min.", s: "sek.", day: ["døgn", "døgn"] },
@@ -361,8 +366,26 @@ const TEXT = {
   }
 };
 
-const TOPICS = ["addition", "subtraction", "multiplication", "division", "mixed"];
-const SYMBOL = { addition: "+", subtraction: "−", multiplication: "×", division: "÷", mixed: "🧩" };
+// Two subjects on the start screen. A Matematik round mixes all math topics;
+// each answer is still logged with its own topic, so bronze and dbt are unchanged.
+const SUBJECTS = ["math", "danish"];
+const SUBJECT_ICON = { math: "🔢", danish: "✏️" };
+const SYMBOL = { addition: "+", subtraction: "−", multiplication: "×", division: "÷" };
+
+// Dansk: spelling words for mellemtrin (ages 8–12), words children often misspell
+// (silent letters, hv-/hj-, double consonants, -ig/-lig endings). Game only: never sent.
+const WORDS = {
+  1: ["hvad", "hvor", "hvem", "hvid", "hjem", "hjælp", "mand", "kold", "sjov", "skole",
+      "vejr", "øje", "ord", "bord", "gul", "rød", "hund", "kage", "tog", "sne"],
+  2: ["først", "sidst", "morgen", "aften", "sommer", "vinter", "tirsdag", "onsdag", "lørdag", "sammen",
+      "hjerte", "dejlig", "venner", "mærkelig", "rigtig", "ligesom", "bjerg", "nøgle", "spørge", "cykel"],
+  3: ["selvfølgelig", "desværre", "egentlig", "overraskelse", "interessant", "efterhånden", "hurtigt",
+      "nødvendig", "tilfældigvis", "fødselsdag", "chokolade", "giraf", "restaurant", "ambulance",
+      "bibliotek", "tørklæde", "køleskab", "hovedpine", "pludselig", "spændende"]
+};
+// How long the word is shown before it is covered (look, cover, write).
+const LOOK_MS = { 1: 3000, 2: 2500, 3: 2000 };
+const LETTER_ROWS = ["qwertyuiopå", "asdfghjklæø", "zxcvbnm"];
 // Difficulty per level, aimed at ages 8–12.
 // Addition/subtraction: numbers within this limit.
 const RANGE = { 1: 100, 2: 500, 3: 1000 };
@@ -381,9 +404,9 @@ const DIVISION = {
 
 // ---- State --------------------------------------------------------------
 const state = {
-  lang: "en", topic: "addition", level: 1,
+  lang: "en", subject: "math", level: 1,
   sessionId: null, index: 0, score: 0, current: null, shownAt: 0, locked: true,
-  typed: "", runMs: 0, penalties: 0, x: 0, run: 0, mixQueue: [],
+  typed: "", runMs: 0, penalties: 0, x: 0, run: 0, queue: [],
   log: [], sent: 0, failed: 0
 };
 
@@ -525,13 +548,29 @@ const MIXED = {
 };
 
 // ---- Question generation ------------------------------------------------
-// Returns { a, b, answer }, plus { type, text, view } for mixed puzzles.
-// All values are whole numbers >= 0.
-function makeQuestion(topic, level) {
-  if (topic === "mixed") {
-    const type = state.mixQueue[(state.index - 1) % state.mixQueue.length];
-    return Object.assign({ type }, MIXED[type](level));
+// The 10 obstacles of a round.
+// Matematik: two each of +, −, ×, ÷ and two mixed puzzles of different task types.
+// Dansk: 10 different words of the chosen level.
+function planRound(subject, level) {
+  if (subject === "danish") {
+    return shuffle(WORDS[level].slice()).slice(0, QUESTIONS_PER_ROUND).map((word) => ({ topic: "danish", word }));
   }
+  const puzzles = shuffle(TASK_TYPES.slice()).slice(0, 2);
+  return shuffle([
+    ...["addition", "subtraction", "multiplication", "division"].flatMap((topic) => [{ topic }, { topic }]),
+    ...puzzles.map((type) => ({ topic: "mixed", type }))
+  ]);
+}
+
+// Returns { topic, a, b, answer }, plus { type, text, view } for mixed puzzles
+// and { word } for spelling. Math values are whole numbers >= 0.
+function makeQuestion(plan, level) {
+  if (plan.topic === "danish") return { topic: "danish", word: plan.word, answer: plan.word };
+  return Object.assign({ topic: plan.topic }, mathQuestion(plan.topic, level, plan.type));
+}
+
+function mathQuestion(topic, level, type) {
+  if (topic === "mixed") return Object.assign({ type }, MIXED[type](level));
   if (topic === "addition") {
     const max = RANGE[level];
     const a = rand(Math.floor(max / 10), max - 1);
@@ -559,12 +598,14 @@ function makeQuestion(topic, level) {
 
 // ---- Event tracking -----------------------------------------------------
 // One event per answer or skip. Sending never blocks the game.
+// Spelling (Dansk) is never tracked: the pipeline only takes math answers.
 function track(givenAnswer, responseMs) {
   const q = state.current;
+  if (q.topic === "danish") return;
   const event = {
     session_id: state.sessionId,
     language: state.lang,
-    topic: state.topic,
+    topic: q.topic,
     level: state.level,
     question_index: state.index,
     operand_a: q.a,
@@ -659,9 +700,9 @@ async function flushQueue() {
 }
 
 // ---- Best times -----------------------------------------------------------
-// Kept on this device only, per topic and level. Never sent anywhere.
+// Kept on this device only, per subject and level. Never sent anywhere.
 const BEST_KEY = "mathTrailBest";
-const bestKey = () => state.topic + "-" + state.level;
+const bestKey = () => state.subject + "-" + state.level;
 
 function readBest() {
   try { return JSON.parse(localStorage.getItem(BEST_KEY)) || {}; } catch (e) { return {}; }
@@ -812,6 +853,7 @@ function applyText() {
     b.setAttribute("aria-pressed", String(b.dataset.lang === state.lang)));
   $("quitBtn").setAttribute("aria-label", t().quit);
   $("skipBtn").setAttribute("aria-label", t().skip);
+  $("muteBtn").setAttribute("aria-label", t().sound);
   renderChoices();
   renderStatus();
   if (state.current) renderMeta();
@@ -819,12 +861,12 @@ function applyText() {
 
 function renderChoices() {
   $("topics").innerHTML = "";
-  TOPICS.forEach((topic) => {
+  SUBJECTS.forEach((subject) => {
     const b = document.createElement("button");
     b.className = "choice";
-    b.textContent = SYMBOL[topic] + " " + t().topics[topic];
-    b.setAttribute("aria-pressed", String(topic === state.topic));
-    b.onclick = () => { state.topic = topic; renderChoices(); };
+    b.textContent = SUBJECT_ICON[subject] + " " + t().subjects[subject];
+    b.setAttribute("aria-pressed", String(subject === state.subject));
+    b.onclick = () => { state.subject = subject; renderChoices(); };
     $("topics").appendChild(b);
   });
   $("levels").innerHTML = "";
@@ -870,8 +912,23 @@ function popPenalty() {
 function renderQuestion(q) {
   const prompt = $("prompt");
   prompt.textContent = "";
+  if (q.topic === "danish") {
+    // Look, cover, write: the word is shown first, then covered by showSpelling().
+    const hint = document.createElement("div");
+    hint.className = "hint";
+    hint.textContent = t().spellLook;
+    prompt.appendChild(hint);
+    prompt.classList.remove("hidden");
+    $("question").textContent = q.word;
+    $("question").className = "spell-word";
+    $("suffix").textContent = "";
+    $("answerBox").classList.add("hidden");
+    return;
+  }
+  $("question").className = "";
+  $("answerBox").classList.remove("hidden");
   if (!q.type) {
-    $("question").textContent = q.a + " " + SYMBOL[state.topic] + " " + q.b + " =";
+    $("question").textContent = q.a + " " + SYMBOL[q.topic] + " " + q.b + " =";
     $("question").classList.remove("small");
     $("suffix").textContent = "";
     prompt.classList.add("hidden");
@@ -908,8 +965,16 @@ function renderQuestion(q) {
   $("suffix").textContent = v.suffix || "";
 }
 
+// Covers the spelling word and lets the player type it.
+function showSpelling() {
+  $("prompt").firstChild.textContent = t().spellWrite;
+  $("question").textContent = "✏️";
+  $("question").className = "";
+  $("answerBox").classList.remove("hidden");
+}
+
 function setTyped(value) {
-  state.typed = value.slice(0, 10);
+  state.typed = value.slice(0, 16);
   $("answerBox").textContent = state.typed || "?";
   $("answerBox").classList.toggle("empty", !state.typed);
   $("submitBtn").disabled = state.locked || state.typed === "";
@@ -942,9 +1007,10 @@ function show(id) {
 // so the animations of an old round stop at their next step.
 async function startRound() {
   const run = ++state.run;
+  Sound.startMusic();
   Object.assign(state, { sessionId: uuid(), index: 0, score: 0, runMs: 0, penalties: 0, shownAt: 0, current: null });
-  // Mixed: two of each task type per course, in random order.
-  state.mixQueue = shuffle(TASK_TYPES.flatMap((type) => [type, type]));
+  state.queue = planRound(state.subject, state.level);
+  buildKeypad(state.subject);
   $("prompt").classList.add("hidden");
   $("suffix").textContent = "";
   buildCourse();
@@ -967,16 +1033,23 @@ async function startRound() {
   nextQuestion();
 }
 
-function nextQuestion() {
+async function nextQuestion() {
+  const run = state.run;
   state.index++;
-  state.current = makeQuestion(state.topic, state.level);
+  state.current = makeQuestion(state.queue[state.index - 1], state.level);
   renderQuestion(state.current);
   $("feedback").textContent = "";
   $("feedback").className = "feedback";
   setTyped("");
-  setLocked(false);
   renderMeta();
+  // The clock runs while the word is shown too: looking is part of the task.
   state.shownAt = performance.now();
+  if (state.current.topic === "danish") {
+    await wait(LOOK_MS[state.level]);
+    if (run !== state.run) return;
+    showSpelling();
+  }
+  setLocked(false);
 }
 
 async function answer(raw) {
@@ -986,20 +1059,25 @@ async function answer(raw) {
   const elapsed = performance.now() - state.shownAt;
   state.runMs += elapsed;
   state.shownAt = 0;
-  const given = raw === null ? null : raw.trim().slice(0, 10);
+  const spelling = state.current.topic === "danish";
+  const given = raw === null ? null : raw.trim().slice(0, spelling ? 16 : 10);
   track(given, elapsed);
 
   const i = state.index;
   const fb = $("feedback");
-  const ok = given !== null && /^\d+$/.test(given) && Number(given) === state.current.answer;
+  const ok = given !== null && (spelling
+    ? given.toLowerCase() === state.current.answer
+    : /^\d+$/.test(given) && Number(given) === state.current.answer);
   if (ok) {
     state.score++;
+    Sound.correct();
     fb.textContent = t().correct;
     fb.className = "feedback good";
     await jumpTo(landedX(i), 650);
   } else {
     // Wrong or skipped: +10 seconds, the runner bumps into the obstacle, then climbs over.
     state.penalties++;
+    Sound.wrong();
     fb.textContent = (given === null ? t().skipped : t().wrongWas) + " " + state.current.answer;
     fb.className = "feedback bad";
     popPenalty();
@@ -1018,12 +1096,15 @@ async function answer(raw) {
   if (i >= QUESTIONS_PER_ROUND) {
     await runTo(FINISH_X + 30, 1100);
     if (run !== state.run) return;
+    Sound.stopMusic();
+    Sound.goal();
     banner("🏁");
     await wait(700);
     if (run !== state.run) return;
     banner("");
     return endRound();
   }
+  Sound.next();
   await runTo(waitingX(i + 1), 450);
   if (run !== state.run) return;
   nextQuestion();
@@ -1045,8 +1126,75 @@ function stopRound() {
   state.run++;
   state.current = null;
   state.shownAt = 0;
+  Sound.stopMusic();
   banner("");
   show("start");
+}
+
+// ---- Keypad ---------------------------------------------------------------
+function key(k, label, cls) {
+  return `<button class="key${cls ? " " + cls : ""}" data-key="${k}"${k === "del" ? ` aria-label="${t().del}"` : ""}${k === "ok" ? ' id="submitBtn"' : ""}>${label}</button>`;
+}
+
+function buildKeypad(subject) {
+  const pad = $("keypad");
+  pad.classList.toggle("letters", subject === "danish");
+  if (subject === "danish") {
+    pad.innerHTML = LETTER_ROWS.map((row) => [...row].map((c) => key(c, c)).join("")).join("") +
+      key("del", "⌫", "del") + key("ok", t().check, "ok");
+  } else {
+    pad.innerHTML = [1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => key(n, n)).join("") +
+      key("del", "⌫", "del") + key(0, 0) + key("ok", t().check, "ok");
+  }
+}
+
+// ---- Reward: a dinosaur with a pizza and heart sunglasses -------------------
+// Drawn in SVG in code, no image file. Shown on the end screen after every round.
+function heart(cx, cy, s) {
+  return `M${cx} ${cy + s * 0.9} C${cx - s * 1.5} ${cy + s * 0.05} ${cx - s * 0.9} ${cy - s * 1.05} ${cx} ${cy - s * 0.35}
+    C${cx + s * 0.9} ${cy - s * 1.05} ${cx + s * 1.5} ${cy + s * 0.05} ${cx} ${cy + s * 0.9} Z`;
+}
+
+function dinoSvg() {
+  const green = "#5cc26a", dark = "#3f9a4c", belly = "#d4f5a8";
+  const body = `
+    <ellipse cx="104" cy="206" rx="70" ry="8" fill="#000" opacity=".12"/>
+    <path d="M72 140 Q34 156 8 132 Q30 168 84 158 Z" fill="${green}" ${INK}/>
+    ${[[66, 96], [54, 112], [48, 132]].map(([x, y]) => `<path d="M${x} ${y} l-14 -4 l8 14 Z" fill="#ff8a1f" ${INK}/>`).join("")}
+    <rect x="96" y="160" width="20" height="36" rx="6" fill="${dark}" ${INK}/>
+    <ellipse cx="98" cy="136" rx="42" ry="46" fill="${green}" ${INK}/>
+    <ellipse cx="110" cy="142" rx="22" ry="32" fill="${belly}"/>
+    <rect x="70" y="164" width="22" height="34" rx="6" fill="${green}" ${INK}/>
+    <ellipse cx="86" cy="198" rx="16" ry="6" fill="${green}" ${INK}/>
+    <ellipse cx="110" cy="198" rx="14" ry="6" fill="${dark}" ${INK}/>
+    <path d="M118 132 L130 144" stroke="${dark}" stroke-width="9" stroke-linecap="round"/>
+    <rect x="92" y="78" width="34" height="44" fill="${green}"/>
+    <rect x="94" y="38" width="92" height="64" rx="30" fill="${green}" ${INK}/>
+    <path d="M94 100 Q92 112 96 122 M126 100 Q128 110 124 118" fill="none" ${INK}/>
+    <circle cx="176" cy="58" r="2.5" fill="#23272f"/>
+    <path d="M144 86 Q162 98 180 82" fill="none" ${INK} stroke-linecap="round"/>
+    <path d="M154 90 l3 6 l4 -4" fill="#fff" ${INK}/>`;
+  const glasses = `
+    <path d="M100 58 L114 62" ${INK} fill="none"/>
+    <path d="M140 63 Q146 58 152 63" ${INK} fill="none"/>
+    <path d="${heart(128, 64, 14)}" fill="#ff3d7f" ${INK}/>
+    <path d="${heart(165, 64, 14)}" fill="#ff3d7f" ${INK}/>
+    <ellipse cx="123" cy="58" rx="4" ry="2.5" fill="#fff" opacity=".8"/>
+    <ellipse cx="160" cy="58" rx="4" ry="2.5" fill="#fff" opacity=".8"/>`;
+  const pizza = `
+    <path d="M150 126 L192 94 L200 128 Z" fill="#ffd84d" ${INK}/>
+    <path d="M192 94 L200 128" stroke="#d9922e" stroke-width="9" stroke-linecap="round"/>
+    <path d="M192 94 L200 128" fill="none" ${INK}/>
+    <circle cx="176" cy="110" r="5" fill="#e23b3b" ${INK}/>
+    <circle cx="187" cy="120" r="4.5" fill="#e23b3b" ${INK}/>
+    <circle cx="166" cy="120" r="3.5" fill="#e23b3b" ${INK}/>
+    <path d="M158 124 q-2 6 1 10" stroke="#ffd84d" stroke-width="3" fill="none" stroke-linecap="round"/>`;
+  const arm = `
+    <path d="M126 124 L150 124" stroke="#23272f" stroke-width="12" stroke-linecap="round"/>
+    <path d="M126 124 L150 124" stroke="${green}" stroke-width="7" stroke-linecap="round"/>
+    <circle cx="153" cy="124" r="6.5" fill="${green}" ${INK}/>`;
+  return `<svg class="dino" viewBox="0 0 210 216" role="img" aria-label="🦖🍕😎" xmlns="http://www.w3.org/2000/svg">
+    <g class="bob">${body}${glasses}${pizza}${arm}</g></svg>`;
 }
 
 // ---- Wiring -------------------------------------------------------------
@@ -1061,13 +1209,17 @@ $("keypad").addEventListener("click", (e) => {
 // A physical keyboard works too (tablet with keyboard, computer).
 document.addEventListener("keydown", (e) => {
   if ($("play").classList.contains("hidden") || state.locked || e.ctrlKey || e.metaKey || e.altKey) return;
-  if (/^[0-9]$/.test(e.key)) setTyped(state.typed + e.key);
+  const spelling = state.current && state.current.topic === "danish";
+  if (spelling ? /^[a-zæøå]$/i.test(e.key) : /^[0-9]$/.test(e.key)) setTyped(state.typed + e.key.toLowerCase());
   else if (e.key === "Backspace") setTyped(state.typed.slice(0, -1));
   else if (e.key === "Enter" && state.typed) answer(state.typed);
   else return;
   e.preventDefault();
 });
 $("skipBtn").onclick = () => answer(null);
+function renderMute() { $("muteBtn").textContent = Sound.isMuted() ? "🔇" : "🔊"; }
+$("muteBtn").onclick = () => { Sound.setMuted(!Sound.isMuted()); renderMute(); };
+renderMute();
 // Stopping sends nothing: the last question_index in a session shows where the player gave up.
 $("quitBtn").onclick = stopRound;
 $("againBtn").onclick = startRound;
@@ -1078,6 +1230,8 @@ document.querySelectorAll("[data-lang]").forEach((b) =>
 
 state.lang = (navigator.language || "en").toLowerCase().startsWith("da") ? "da" : "en";
 state.failed = readQueue().length;
+$("dino").innerHTML = dinoSvg();
+buildKeypad(state.subject);
 buildTown();
 applyText();
 

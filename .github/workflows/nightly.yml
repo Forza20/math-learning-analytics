@@ -49,7 +49,7 @@ jobs:
       - name: Assemble site
         run: |
           mkdir -p _site/dashboard _site/dbt-docs _site/icons
-          cp game/index.html game/manifest.webmanifest game/sw.js _site/
+          cp game/index.html game/sound.js game/manifest.webmanifest game/sw.js _site/
           cp game/icons/*.png _site/icons/
           cp dashboard/index.html dashboard/data.js _site/dashboard/
           cp dbt/target/static_index.html _site/dbt-docs/index.html
