@@ -62,7 +62,7 @@ export const GameScene: React.FC<{ recording: Recording }> = ({ recording }) => 
   return (
     <>
       <Kicker>1 · The game</Kicker>
-      <Heading>Every answer becomes an event</Heading>
+      <Heading size={56}>Every answer becomes an event</Heading>
 
       <div style={{ display: "flex", gap: 40, marginTop: 36, alignItems: "flex-start" }}>
         <div

@@ -21,7 +21,7 @@ export const IntroScene: React.FC = () => {
 
       <AbsoluteFill style={{ justifyContent: "center", padding: 80 }}>
         <div style={{ fontSize: 34, fontWeight: 700, color: colors.blue, letterSpacing: 2, opacity: kicker }}>
-          MATH TRAIL
+          REGNESTIEN
         </div>
         <div
           style={{
