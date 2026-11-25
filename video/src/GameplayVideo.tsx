@@ -2,8 +2,8 @@ import React from "react";
 import {
   AbsoluteFill,
   CalculateMetadataFunction,
+  Img,
   interpolate,
-  OffthreadVideo,
   Sequence,
   spring,
   staticFile,
@@ -18,8 +18,10 @@ import { fontFamily } from "./theme";
 
 export const GAMEPLAY_FPS = 30;
 
-// Milliseconds from the start of each recording, written by gameplay/record.mjs.
-export type Markers = { math: Record<string, number>; danish: Record<string, number> };
+// Written by gameplay/record.mjs. Per round: when each moment happened and when
+// each frame (public/gameplay/<round>/<n>.jpg) was painted, in ms from the first frame.
+type Recording = { marks: Record<string, number>; frames: number[] };
+export type Markers = { math: Recording; danish: Recording };
 export type GameplayProps = { markers: Markers | null };
 
 // The game's own colours, so the video looks like the app.
@@ -41,19 +43,26 @@ type Clip = {
   src: "math" | "danish";
   from: (m: Markers) => number; // ms in the recording where the clip starts
   frames: number; // length in the video
-  rate: number; // playback speed
+  rate: number | ((m: Markers) => number); // playback speed
   caption: string;
 };
 
 // 525 frames of gameplay + 75 frames outro = 600 frames = 20 s.
 const CLIPS: Clip[] = [
-  { name: "Start", src: "math", from: (m) => m.math.tapSubject - 400, frames: 60, rate: 1.3, caption: "Pick a subject and a level" },
-  { name: "Play", src: "math", from: (m) => m.math.go - 200, frames: 150, rate: 1.5, caption: "Solve the task to jump the obstacle" },
-  { name: "Wrong", src: "math", from: (m) => m.math.q4 - 200, frames: 105, rate: 1, caption: "A wrong answer costs 10 seconds" },
-  { name: "Dansk", src: "danish", from: (m) => m.danish.q1 - 300, frames: 75, rate: 1.2, caption: "Dansk: pick the right spelling" },
-  { name: "Finish", src: "math", from: (m) => m.math.a10 - 300, frames: 60, rate: 1.5, caption: "Race to the finish line" },
-  { name: "Reward", src: "math", from: (m) => m.math.end - 200, frames: 75, rate: 1, caption: "Beat your best time and meet the dino" },
+// The start clip runs from the first tap to just after Start, whatever that took.
+const START_FROM = (m: Markers) => m.math.marks.tapSubject - 300;
+const CLIPS: Clip[] = [
+  {
+    name: "Start", src: "math", from: START_FROM, frames: 60, caption: "Pick a subject and a level",
+    rate: (m) => Math.max(1, Math.round((m.math.marks.start + 500 - START_FROM(m)) / 200) / 10),
+  },
+  { name: "Play", src: "math", from: (m) => m.math.marks.go - 200, frames: 150, rate: 1.5, caption: "Solve the task to jump the obstacle" },
+  { name: "Wrong", src: "math", from: (m) => m.math.marks.q4 - 200, frames: 105, rate: 1, caption: "A wrong answer costs 10 seconds" },
+  { name: "Dansk", src: "danish", from: (m) => m.danish.marks.q1 - 300, frames: 75, rate: 1.2, caption: "Dansk: pick the right spelling" },
+  { name: "Finish", src: "math", from: (m) => m.math.marks.a10 - 300, frames: 60, rate: 1.5, caption: "Race to the finish line" },
+  { name: "Reward", src: "math", from: (m) => m.math.marks.end - 200, frames: 75, rate: 1, caption: "Beat your best time and meet the dino" },
 ];
+const rateOf = (clip: Clip, m: Markers) => (typeof clip.rate === "number" ? clip.rate : clip.rate(m));
 const OUTRO_FRAMES = 75;
 export const GAMEPLAY_DURATION = CLIPS.reduce((sum, c) => sum + c.frames, 0) + OUTRO_FRAMES;
 
@@ -64,8 +73,8 @@ export const calculateGameplayMetadata: CalculateMetadataFunction<GameplayProps>
   return { props: { markers: res.ok ? ((await res.json()) as Markers) : null } };
 };
 
-// Phone frame: the recording is 390×760 CSS px (recorded at 2x).
-const SCREEN = { w: 478, h: 932 };
+// Phone frame: the recording is 412×800 CSS px (frames at 2x).
+const SCREEN = { w: 480, h: 932 };
 const BEZEL = 14;
 const PHONE = { x: 1080 - (SCREEN.w + 2 * BEZEL) - 56, y: (1080 - (SCREEN.h + 2 * BEZEL)) / 2 };
 const LEFT = { x: 56, w: PHONE.x - 56 - 40 };
@@ -79,9 +88,8 @@ const useSpring = (delay = 0) => {
 const Sky: React.FC = () => (
   <AbsoluteFill style={{ background: `linear-gradient(${C.skyTop}, ${C.skyBottom})` }}>
     {[
-      { x: 60, y: 820, w: 150 },
-      { x: 300, y: 930, w: 110 },
-      { x: 150, y: 990, w: 80 },
+      { x: 70, y: 780, w: 150 },
+      { x: 290, y: 840, w: 110 },
     ].map((c, i) => (
       <div
         key={i}
@@ -175,15 +183,25 @@ const Phone: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   </div>
 );
 
-const ClipVideo: React.FC<{ clip: Clip; markers: Markers }> = ({ clip, markers }) => (
-  <OffthreadVideo
-    src={staticFile(`gameplay/${clip.src}.webm`)}
-    startFrom={Math.max(0, Math.round((clip.from(markers) / 1000) * GAMEPLAY_FPS))}
-    playbackRate={clip.rate}
-    muted
-    style={{ width: SCREEN.w, height: SCREEN.h, objectFit: "cover" }}
-  />
-);
+// Shows the last frame painted at this moment of the recording.
+const ClipFrames: React.FC<{ clip: Clip; markers: Markers }> = ({ clip, markers }) => {
+  const frame = useCurrentFrame();
+  const ms = clip.from(markers) + (frame / GAMEPLAY_FPS) * 1000 * rateOf(clip, markers);
+  const times = markers[clip.src].frames;
+  let lo = 0;
+  let hi = times.length - 1;
+  while (lo < hi) {
+    const mid = Math.ceil((lo + hi) / 2);
+    if (times[mid] <= ms) lo = mid;
+    else hi = mid - 1;
+  }
+  return (
+    <Img
+      src={staticFile(`gameplay/${clip.src}/${lo}.jpg`)}
+      style={{ width: SCREEN.w, height: SCREEN.h, objectFit: "cover", objectPosition: "top" }}
+    />
+  );
+};
 
 const Outro: React.FC = () => {
   const a = useSpring(0);
@@ -191,7 +209,7 @@ const Outro: React.FC = () => {
   const c = useSpring(22);
   const rise = (t: number) => ({ opacity: Math.min(1, t * 1.5), transform: `translateY(${interpolate(t, [0, 1], [30, 0])}px)` });
   return (
-    <AbsoluteFill style={{ justifyContent: "center", alignItems: "center", padding: 80, textAlign: "center" }}>
+    <AbsoluteFill style={{ justifyContent: "center", alignItems: "center", padding: 60, textAlign: "center" }}>
       <Sky />
       <div style={{ position: "relative", fontSize: 96, fontWeight: 900, color: C.white, textShadow: outline(5), ...rise(a) }}>Regnestien</div>
       <div style={{ position: "relative", marginTop: 30, fontSize: 46, fontWeight: 900, color: C.ink, lineHeight: 1.2, maxWidth: 860, ...rise(b) }}>
@@ -210,7 +228,7 @@ const Outro: React.FC = () => {
         }}
       >
         <div style={{ fontSize: 28, fontWeight: 800, color: C.ink, opacity: 0.7 }}>Play it, and see the dashboard and code</div>
-        <div style={{ fontSize: 40, fontWeight: 900, color: "#2f6fdf", marginTop: 6 }}>forza20.github.io/math-learning-analytics</div>
+        <div style={{ fontSize: 34, fontWeight: 900, color: "#2f6fdf", marginTop: 6, whiteSpace: "nowrap" }}>forza20.github.io/math-learning-analytics</div>
       </div>
     </AbsoluteFill>
   );
@@ -236,9 +254,9 @@ export const GameplayVideo: React.FC<GameplayProps> = ({ markers }) => {
         return (
           <Sequence key={clip.name} name={clip.name} from={from} durationInFrames={clip.frames}>
             <Phone>
-              <ClipVideo clip={clip} markers={markers} />
+              <ClipFrames clip={clip} markers={markers} />
             </Phone>
-            <Caption text={clip.caption} rate={clip.rate} />
+            <Caption text={clip.caption} rate={rateOf(clip, markers)} />
           </Sequence>
         );
       })}

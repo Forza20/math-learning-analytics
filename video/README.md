@@ -21,7 +21,7 @@ recordings of the game, with captions beside a phone frame.
 
 1. `gameplay/record.mjs` plays a scripted Matematik round (one wrong answer on
    purpose) and three Dansk picks in Chrome with Playwright, with a fixed random
-   seed. It saves the recordings and `markers.json` (when each moment happens) to
+   seed. It saves every screen frame with its time, plus `markers.json`, to
    `public/gameplay/`. Supabase calls are answered inside the browser, so no events
    reach bronze.
 2. `src/GameplayVideo.tsx` cuts six clips from those markers and adds an outro.
@@ -33,7 +33,6 @@ artifact `gameplay-video`. Locally (Chrome installed, game served on port 8000):
 cd video
 npm ci
 npm install --no-save playwright-core@1.49.1
-npx playwright-core install ffmpeg
 python -m http.server 8000 --directory ../game   # in another terminal
 node gameplay/record.mjs
 npx remotion render GameplayVideo out/gameplay.mp4 --crf=18

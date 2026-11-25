@@ -62,7 +62,7 @@ jobs:
         run: sudo apt-get update -q && sudo apt-get install -y -q fonts-inter fonts-noto-color-emoji
       - run: npm ci
       - name: Install the recorder (Playwright, using the runner's Chrome)
-        run: npm install --no-save playwright-core@1.49.1 && npx playwright-core install ffmpeg
+        run: npm install --no-save playwright-core@1.49.1
       - name: Type-check
         run: npx tsc
       - name: Record gameplay
