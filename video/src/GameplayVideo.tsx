@@ -15,7 +15,7 @@ import { fontFamily } from "./theme";
 
 // A 20-second gameplay video for LinkedIn, cut from real screen recordings of the
 // game (gameplay/record.mjs). The phone on the right plays the clips; the captions
-// on the left say what is happening. The sound is the game's own music and effects,
+// on the left say what is happening, in Danish like the game. The sound is the game's own music and effects,
 // each effect played at normal speed at the moment the game played it.
 
 export const GAMEPLAY_FPS = 30;
@@ -50,14 +50,14 @@ type Clip = {
 const START_FROM = (m: Markers) => m.math.marks.tapSubject - 300;
 const CLIPS: Clip[] = [
   {
-    name: "Start", src: "math", from: START_FROM, frames: 60, caption: "Pick a subject and a level",
+    name: "Start", src: "math", from: START_FROM, frames: 60, caption: "Vælg fag og niveau",
     rate: (m) => Math.max(1, Math.round((m.math.marks.start + 500 - START_FROM(m)) / 200) / 10),
   },
-  { name: "Play", src: "math", from: (m) => m.math.marks.go - 200, frames: 150, rate: 1.5, caption: "Solve the task to jump the obstacle" },
-  { name: "Wrong", src: "math", from: (m) => m.math.marks.q4 - 200, frames: 105, rate: 1, caption: "A wrong answer costs 10 seconds" },
-  { name: "Dansk", src: "danish", from: (m) => m.danish.marks.q1 - 300, frames: 75, rate: 1.2, caption: "Dansk: pick the right spelling" },
-  { name: "Finish", src: "math", from: (m) => m.math.marks.a10 - 300, frames: 60, rate: 1.5, caption: "Race to the finish line" },
-  { name: "Reward", src: "math", from: (m) => m.math.marks.end - 200, frames: 75, rate: 1, caption: "Beat your best time and meet the dino" },
+  { name: "Play", src: "math", from: (m) => m.math.marks.go - 200, frames: 150, rate: 1.5, caption: "Løs opgaven og hop over hindringen" },
+  { name: "Wrong", src: "math", from: (m) => m.math.marks.q4 - 200, frames: 105, rate: 1, caption: "Et forkert svar koster 10 sekunder" },
+  { name: "Dansk", src: "danish", from: (m) => m.danish.marks.q1 - 300, frames: 75, rate: 1.2, caption: "Dansk: vælg den rigtige stavemåde" },
+  { name: "Finish", src: "math", from: (m) => m.math.marks.a10 - 300, frames: 60, rate: 1.5, caption: "Løb mod målstregen" },
+  { name: "Reward", src: "math", from: (m) => m.math.marks.end - 200, frames: 75, rate: 1, caption: "Slå din bedste tid og mød dinoen" },
 ];
 const rateOf = (clip: Clip, m: Markers) => (typeof clip.rate === "number" ? clip.rate : clip.rate(m));
 const OUTRO_FRAMES = 75;
@@ -97,7 +97,7 @@ const Title: React.FC = () => (
   <div style={{ position: "absolute", left: LEFT.x, top: 72, width: LEFT.w }}>
     <div style={{ fontSize: 76, fontWeight: 900, color: C.white, textShadow: outline(4), letterSpacing: 1 }}>Regnestien</div>
     <div style={{ marginTop: 14, fontSize: 30, fontWeight: 800, color: C.ink, lineHeight: 1.25 }}>
-      A math and spelling game for kids aged 8–12
+      Et regne- og stavespil for børn på 8–12 år
     </div>
   </div>
 );
@@ -144,7 +144,7 @@ const Caption: React.FC<{ text: string; rate: number }> = ({ text, rate }) => {
             color: C.ink,
           }}
         >
-          ⏩ {rate}× speed
+          ⏩ {String(rate).replace(".", ",")}× hastighed
         </div>
       )}
     </div>
@@ -153,7 +153,7 @@ const Caption: React.FC<{ text: string; rate: number }> = ({ text, rate }) => {
 
 const Footer: React.FC = () => (
   <div style={{ position: "absolute", left: LEFT.x, bottom: 64, width: LEFT.w, fontSize: 24, fontWeight: 800, color: C.ink, opacity: 0.75 }}>
-    Real gameplay, recorded in the browser
+    Rigtigt spil, optaget i browseren
   </div>
 );
 
@@ -198,7 +198,7 @@ const Outro: React.FC = () => {
       <Sky />
       <div style={{ position: "relative", fontSize: 96, fontWeight: 900, color: C.white, textShadow: outline(5), ...rise(a) }}>Regnestien</div>
       <div style={{ position: "relative", marginTop: 30, fontSize: 46, fontWeight: 900, color: C.ink, lineHeight: 1.2, maxWidth: 860, ...rise(b) }}>
-        Every answer becomes an anonymous event in a nightly data pipeline
+        Hvert svar bliver en anonym hændelse i en natlig datapipeline
       </div>
       <div
         style={{
@@ -212,7 +212,7 @@ const Outro: React.FC = () => {
           ...rise(c),
         }}
       >
-        <div style={{ fontSize: 28, fontWeight: 800, color: C.ink, opacity: 0.7 }}>Play it, and see the dashboard and code</div>
+        <div style={{ fontSize: 28, fontWeight: 800, color: C.ink, opacity: 0.7 }}>Spil det, og se dashboard og kode</div>
         <div style={{ fontSize: 34, fontWeight: 900, color: "#2f6fdf", marginTop: 6, whiteSpace: "nowrap" }}>forza20.github.io/math-learning-analytics</div>
       </div>
     </AbsoluteFill>
