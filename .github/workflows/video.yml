@@ -82,9 +82,9 @@ jobs:
         run: |
           for s in 0 2 4 6 8 10 12 14 16 18; do
             printf "%2ss " $s
-            ffmpeg -hide_banner -ss $s -t 2 -i out/gameplay.mp4 -vn -af volumedetect -f null - 2>&1 | grep -o "max_volume: .*"
+            npx remotion ffmpeg -hide_banner -ss $s -t 2 -i out/gameplay.mp4 -vn -af volumedetect -f null - 2>&1 | grep -o "max_volume: .*" || echo "no audio"
           done
-          max=$(ffmpeg -hide_banner -i out/gameplay.mp4 -vn -af volumedetect -f null - 2>&1 | grep -o "max_volume: [-0-9.]*" | grep -o "[-0-9.]*$")
+          max=$(npx remotion ffmpeg -hide_banner -i out/gameplay.mp4 -vn -af volumedetect -f null - 2>&1 | grep -o "max_volume: [-0-9.]*" | grep -o "[-0-9.]*$")
           echo "whole video max_volume: $max dB"
           awk -v m="$max" 'BEGIN { exit !(m > -40) }'
       - uses: actions/upload-artifact@v4
