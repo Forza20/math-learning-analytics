@@ -2,14 +2,16 @@ import React from "react";
 import { Caption, Card, Heading, Kicker, useIn } from "../components";
 import { colors } from "../theme";
 
-// From the live dashboard (gold.mart_times_tables, simulated players, 2026-11-20).
+// From the live dashboard (dashboard/data.js generated 2026-11-24).
+// Chart: gold.mart_times_tables, multiplication, simulated players.
 const TABLES: [number, number][] = [
-  [2, 0.93], [3, 0.83], [4, 0.86], [5, 0.79], [6, 0.74], [7, 0.71], [8, 0.72], [9, 0.72], [10, 0.75],
+  [2, 0.943], [3, 0.848], [4, 0.827], [5, 0.772], [6, 0.735], [7, 0.698], [8, 0.701], [9, 0.729], [10, 0.749],
 ];
+// KPIs: gold kpis, simulated + real players (17,580 + 115 answers, 1,991 + 14 rounds).
 const KPIS: [string, string][] = [
-  ["16,016", "answers"],
-  ["1,812", "rounds"],
-  ["42", "days of data"],
+  ["17,695", "answers"],
+  ["2,005", "rounds"],
+  ["46", "days of data"],
 ];
 const HARD = new Set([7, 8, 9]);
 const CHART_H = 300;
