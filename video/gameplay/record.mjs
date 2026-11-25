@@ -211,7 +211,8 @@ async function renderSounds(browser) {
       text(12, "fmt "); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
       v.setUint32(24, RATE, true); v.setUint32(28, RATE * 2, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true);
       text(36, "data"); v.setUint32(40, data.length * 2, true);
-      data.forEach((x, i) => v.setInt16(44 + i * 2, Math.max(-1, Math.min(1, x)) * 32767, true));
+      // The game plays at 0.3 master volume; 2.5x brings the video to a normal level.
+      data.forEach((x, i) => v.setInt16(44 + i * 2, Math.max(-1, Math.min(1, x * 2.5)) * 32767, true));
       const u8 = new Uint8Array(bytes);
       let bin = "";
       for (let i = 0; i < u8.length; i += 0x8000) bin += String.fromCharCode(...u8.subarray(i, i + 0x8000));
