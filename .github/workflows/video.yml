@@ -41,3 +41,46 @@ jobs:
         with:
           name: intro-video
           path: video/out/
+
+  # 20-second gameplay video for LinkedIn: records the real game in Chrome,
+  # then cuts the clips in Remotion. Supabase calls are answered inside the
+  # browser, so the recording sends no events to the database.
+  gameplay:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: video
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: video/package-lock.json
+      - name: Install fonts used in the video
+        working-directory: .
+        run: sudo apt-get update -q && sudo apt-get install -y -q fonts-inter fonts-noto-color-emoji
+      - run: npm ci
+      - name: Install the recorder (Playwright, using the runner's Chrome)
+        run: npm install --no-save playwright-core@1.49.1 && npx playwright-core install ffmpeg
+      - name: Type-check
+        run: npx tsc
+      - name: Record gameplay
+        run: |
+          python3 -m http.server 8000 --directory ../game > /dev/null 2>&1 &
+          sleep 2
+          node gameplay/record.mjs
+      - name: Render one still per clip
+        run: |
+          mkdir -p out
+          for f in 30 135 260 350 420 490 580; do
+            npx remotion still GameplayVideo "out/gameplay-$f.png" --frame=$f
+          done
+      - name: Render video
+        run: npx remotion render GameplayVideo out/gameplay.mp4 --crf=18
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gameplay-video
+          path: |
+            video/out/gameplay*
+            video/public/gameplay/markers.json
