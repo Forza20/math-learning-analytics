@@ -6,7 +6,9 @@ into a public dashboard about learning and error patterns.
 
 The game is the data source. The pipeline is the point.
 
-<img src="docs/game.gif" width="360" alt="A round of the game: each answer appears as a JSON event on its way to Postgres">
+<img src="docs/gameplay.gif" width="432" alt="Real gameplay: picking Matematik, solving tasks to jump obstacles, a wrong answer costing 10 seconds, a Dansk spelling pick and the dinosaur reward at the finish">
+
+▶ [Watch the 20-second video with sound (MP4)](docs/gameplay.mp4)
 
 **Live:** [Play the game](https://forza20.github.io/math-learning-analytics/) ·
 [Dashboard](https://forza20.github.io/math-learning-analytics/dashboard/) ·

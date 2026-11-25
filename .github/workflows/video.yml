@@ -35,7 +35,7 @@ jobs:
           done
       - name: Render video
         run: npx remotion render IntroVideo out/intro.mp4 --crf=20
-      - name: Render README GIF (game scene, half size, 15 fps)
+      - name: Render GIF of the game scene (half size, 15 fps)
         run: npx remotion render IntroVideo out/game.gif --codec=gif --frames=120-329 --scale=0.5 --every-nth-frame=2
       - uses: actions/upload-artifact@v4
         with:
@@ -87,6 +87,8 @@ jobs:
           max=$(ffmpeg -hide_banner -i out/gameplay.mp4 -vn -af volumedetect -f null - 2>&1 | grep -o "max_volume: [-0-9.]*" | grep -o "[-0-9.]*$")
           echo "whole video max_volume: $max dB"
           awk -v m="$max" 'BEGIN { exit !(m > -40) }'
+      - name: Render README GIF (gameplay clips, 432 px, 10 fps)
+        run: npx remotion render GameplayVideo out/gameplay.gif --codec=gif --frames=0-524 --scale=0.4 --every-nth-frame=3
       - uses: actions/upload-artifact@v4
         with:
           name: gameplay-video

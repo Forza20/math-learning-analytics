@@ -153,6 +153,8 @@ shows the old quiz screen and is 40 seconds; the post needs a short clip of the 
   recording has no audio). Effects play at normal speed where the game played them, also in
   sped-up clips, so they are never pitch-shifted.
 - Rendered by the `gameplay` job in the `video` workflow, for the same disk-space reason as above.
+- The README GIF now comes from this video (`docs/gameplay.gif`), with a link to the MP4 with
+  sound (`docs/gameplay.mp4`). It replaces the GIF of the old quiz screen.
 
 ## Out of scope for v1
 
