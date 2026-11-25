@@ -131,7 +131,7 @@ with no copied assets or names. Choices made along the way:
 - An on-screen keypad replaces the phone keyboard, which covered half the course on a phone.
 - Best times stay in `localStorage` on the device and are never sent.
 - The game keeps one daytime theme, also in dark mode.
-The introduction video (`video/`) still shows the old quiz screen.
+The introduction video (`video/`) showed the old quiz screen until 2026-11-25 (see below).
 
 **2026-11-20: introduction video instead of a recorded demo.** A 40-second square video made in
 code with Remotion (`video/`), so no one has to appear on camera. The local disk had too little
@@ -155,6 +155,9 @@ shows the old quiz screen and is 40 seconds; the post needs a short clip of the 
 - Rendered by the `gameplay` job in the `video` workflow, for the same disk-space reason as above.
 - The README GIF now comes from this video (`docs/gameplay.gif`), with a link to the MP4 with
   sound (`docs/gameplay.mp4`). It replaces the GIF of the old quiz screen.
+- The game scene of the introduction video now shows the same recording instead of a redrawn
+  quiz screen, with the events the game sent for those answers beside it. The `render` job
+  takes the recording from the `gameplay` job, so both videos show the same round.
 
 ## Out of scope for v1
 

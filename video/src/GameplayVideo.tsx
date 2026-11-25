@@ -3,7 +3,6 @@ import {
   AbsoluteFill,
   Audio,
   CalculateMetadataFunction,
-  Img,
   interpolate,
   Sequence,
   spring,
@@ -11,6 +10,7 @@ import {
   useCurrentFrame,
   useVideoConfig,
 } from "remotion";
+import { loadMarkers, Markers, RecordedScreen } from "./recording";
 import { fontFamily } from "./theme";
 
 // A 20-second gameplay video for LinkedIn, cut from real screen recordings of the
@@ -20,11 +20,6 @@ import { fontFamily } from "./theme";
 
 export const GAMEPLAY_FPS = 30;
 
-// Written by gameplay/record.mjs. Per round: when each moment happened, when each
-// game sound played, and when each frame (public/gameplay/<round>/<n>.jpg) was
-// painted, in ms from the first frame.
-type Recording = { marks: Record<string, number>; sounds: [string, number][]; frames: number[] };
-export type Markers = { math: Recording; danish: Recording };
 export type GameplayProps = { markers: Markers | null };
 
 // The game's own colours, so the video looks like the app.
@@ -69,11 +64,8 @@ const OUTRO_FRAMES = 75;
 export const GAMEPLAY_DURATION = CLIPS.reduce((sum, c) => sum + c.frames, 0) + OUTRO_FRAMES;
 
 // Reads the markers from the recording before rendering.
-export const calculateGameplayMetadata: CalculateMetadataFunction<GameplayProps> = async ({ props }) => {
-  if (props.markers) return {};
-  const res = await fetch(staticFile("gameplay/markers.json"));
-  return { props: { markers: res.ok ? ((await res.json()) as Markers) : null } };
-};
+export const calculateGameplayMetadata: CalculateMetadataFunction<GameplayProps> = async ({ props }) =>
+  props.markers ? {} : { props: { markers: await loadMarkers() } };
 
 // Phone frame: the recording is 412×800 CSS px (frames at 2x).
 const SCREEN = { w: 480, h: 932 };
@@ -185,25 +177,16 @@ const Phone: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   </div>
 );
 
-// Shows the last frame painted at this moment of the recording.
-const ClipFrames: React.FC<{ clip: Clip; markers: Markers }> = ({ clip, markers }) => {
-  const frame = useCurrentFrame();
-  const ms = clip.from(markers) + (frame / GAMEPLAY_FPS) * 1000 * rateOf(clip, markers);
-  const times = markers[clip.src].frames;
-  let lo = 0;
-  let hi = times.length - 1;
-  while (lo < hi) {
-    const mid = Math.ceil((lo + hi) / 2);
-    if (times[mid] <= ms) lo = mid;
-    else hi = mid - 1;
-  }
-  return (
-    <Img
-      src={staticFile(`gameplay/${clip.src}/${lo}.jpg`)}
-      style={{ width: SCREEN.w, height: SCREEN.h, objectFit: "cover", objectPosition: "top" }}
-    />
-  );
-};
+const ClipFrames: React.FC<{ clip: Clip; markers: Markers }> = ({ clip, markers }) => (
+  <RecordedScreen
+    recording={markers[clip.src]}
+    src={clip.src}
+    fromMs={clip.from(markers)}
+    rate={rateOf(clip, markers)}
+    width={SCREEN.w}
+    height={SCREEN.h}
+  />
+);
 
 const Outro: React.FC = () => {
   const a = useSpring(0);

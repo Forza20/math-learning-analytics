@@ -4,7 +4,8 @@
 //   public/gameplay/math/<n>.jpg    a full Matematik round (one wrong answer) and the end screen
 //   public/gameplay/danish/<n>.jpg  the first spelling picks of a Dansk round
 //   public/gameplay/markers.json    per round: when each moment happens, when each game sound
-//                                   played and when each frame was painted, in ms from the first frame
+//                                   played and when each frame was painted, in ms from the first
+//                                   frame, and the events the game sent
 //   public/gameplay/sfx/<name>.wav  the game's sounds, made offline by the game's own sound.js
 // src/GameplayVideo.tsx cuts the clips from these markers.
 // Frames come from Chrome's screencast with their own timestamps. Playwright's
@@ -101,6 +102,8 @@ async function newRecording(browser, name) {
 // Stops the screencast; returns marks, sounds and frame times in ms from the first frame.
 async function save({ context, page, cdp, frames, writes, marks }) {
   const sounds = await page.evaluate(() => window.__sounds);
+  // The events the game sent for each answer (answered in the browser, never stored).
+  const events = await page.evaluate(() => state.log);
   await cdp.send("Page.stopScreencast");
   await Promise.all(writes);
   await context.close();
@@ -109,6 +112,7 @@ async function save({ context, page, cdp, frames, writes, marks }) {
   return {
     marks: Object.fromEntries(Object.entries(marks).map(([k, t]) => [k, rel(t)])),
     sounds: sounds.map(([name, t]) => [name, rel(t)]),
+    events,
     frames: frames.map(rel),
   };
 }

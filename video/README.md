@@ -6,8 +6,8 @@ It plays without sound: captions carry the story.
 
 | Frames | Scene | File |
 |---|---|---|
-| 0–120 | Title: a math game, and the pipeline behind it | `src/scenes/IntroScene.tsx` |
-| 120–330 | A round of the game; each answer becomes an event | `src/scenes/GameScene.tsx` |
+| 0–120 | Title: a math and spelling game, and the pipeline behind it | `src/scenes/IntroScene.tsx` |
+| 120–330 | Real gameplay from the recording; the event each answer sent appears beside it | `src/scenes/GameScene.tsx` |
 | 330–450 | The browser can only insert; no personal data | `src/scenes/SecurityScene.tsx` |
 | 450–660 | Bronze → silver → gold → live, nightly | `src/scenes/PipelineScene.tsx` |
 | 660–840 | How mistakes are classified | `src/scenes/MistakesScene.tsx` |
@@ -45,7 +45,8 @@ npx remotion render GameplayVideo out/gameplay.mp4 --crf=18
 On GitHub: run the **video** workflow (Actions tab). It uploads `intro.mp4` and one
 still per scene as the artifact `intro-video`.
 
-Locally (needs about 650 MB free for packages and a headless Chrome):
+Locally (needs about 650 MB free for packages and a headless Chrome, and the
+recording from `gameplay/record.mjs`, see above, for the game scene):
 
 ```bash
 cd video
