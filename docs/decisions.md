@@ -23,7 +23,7 @@ Decisions made before the build started, with the reason for each.
 3. Every gold model has dbt tests, and `dbt docs` with lineage is published.
 4. The README shows the architecture, both links and a GIF of the game.
 5. Every layer and design choice can be explained without AI.
-6. A LinkedIn post with a short video and links (changed to the introduction video, see below).
+6. A LinkedIn post with a short video and links (changed to the introduction video, then the gameplay video, see below).
 
 ## Changes
 
@@ -137,6 +137,22 @@ The introduction video (`video/`) still shows the old quiz screen.
 code with Remotion (`video/`), so no one has to appear on camera. The local disk had too little
 space for Remotion and a headless Chrome, so the `video` workflow renders it on GitHub's servers
 and also exports the GIF in the README.
+
+**2026-11-25: a 20-second gameplay video for the LinkedIn post.** The introduction video still
+shows the old quiz screen and is 40 seconds; the post needs a short clip of the game as it is now.
+- Real gameplay, not a recreation: `video/gameplay/record.mjs` plays a scripted round in Chrome
+  with Playwright (fixed random seed, one wrong answer on purpose, three Dansk picks), and
+  `GameplayVideo` in Remotion cuts six clips beside a phone frame, with English captions and an outro.
+- Supabase calls are answered inside the browser during the recording, so it adds no events to bronze.
+- Frames come from Chrome's screencast with their own timestamps, at 2x zoom. Playwright's built-in
+  video was tried first: it ignored the 2x scale and stretched time during animations, so the
+  clips drifted by up to 2.5 seconds.
+- Sped-up clips (1.2–1.5×) carry a visible speed label.
+- Sound: the game's own music and effects. The recorder logs when the game plays each sound,
+  and renders the sounds to WAV with the game's `sound.js` in an OfflineAudioContext (a screen
+  recording has no audio). Effects play at normal speed where the game played them, also in
+  sped-up clips, so they are never pitch-shifted.
+- Rendered by the `gameplay` job in the `video` workflow, for the same disk-space reason as above.
 
 ## Out of scope for v1
 
