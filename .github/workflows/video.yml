@@ -1,7 +1,8 @@
 name: video
 
-# Renders the introduction video (video/) on GitHub's servers and uploads the
-# MP4 plus one still per scene as an artifact. Started by hand.
+# Renders the introduction video and the gameplay video (video/) on GitHub's
+# servers and uploads each MP4 plus stills as an artifact. Started by hand.
+# Both use the recording of the real game made by the gameplay job.
 on:
   workflow_dispatch:
 
@@ -10,6 +11,7 @@ permissions:
 
 jobs:
   render:
+    needs: gameplay
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -25,6 +27,11 @@ jobs:
         working-directory: .
         run: sudo apt-get update -q && sudo apt-get install -y -q fonts-inter fonts-cascadia-code
       - run: npm ci
+      - name: Get the recording of the real game (game scene)
+        uses: actions/download-artifact@v4
+        with:
+          name: gameplay-recording
+          path: video/public/gameplay
       - name: Type-check
         run: npx tsc
       - name: Render one still per scene
@@ -70,6 +77,12 @@ jobs:
           python3 -m http.server 8000 --directory ../game > /dev/null 2>&1 &
           sleep 2
           node gameplay/record.mjs
+      - name: Share the recording with the intro video job
+        uses: actions/upload-artifact@v4
+        with:
+          name: gameplay-recording
+          path: video/public/gameplay/
+          retention-days: 1
       - name: Render one still per clip
         run: |
           mkdir -p out

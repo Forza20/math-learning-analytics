@@ -1,6 +1,7 @@
 import React from "react";
-import { AbsoluteFill, Series } from "remotion";
+import { AbsoluteFill, CalculateMetadataFunction, Series } from "remotion";
 import { Scene } from "./components";
+import { loadMarkers, Markers } from "./recording";
 import { DashboardScene } from "./scenes/DashboardScene";
 import { GameScene } from "./scenes/GameScene";
 import { IntroScene } from "./scenes/IntroScene";
@@ -25,7 +26,12 @@ export const SCENES = {
 
 export const DURATION = Object.values(SCENES).reduce((a, b) => a + b, 0);
 
-export const IntroVideo: React.FC = () => (
+// The game scene shows the real recording, so the recording must exist (gameplay/record.mjs).
+export type IntroProps = { markers: Markers | null };
+export const calculateIntroMetadata: CalculateMetadataFunction<IntroProps> = async ({ props }) =>
+  props.markers ? {} : { props: { markers: await loadMarkers() } };
+
+export const IntroVideo: React.FC<IntroProps> = ({ markers }) => (
   <AbsoluteFill style={{ backgroundColor: colors.bg }}>
     <Series>
       <Series.Sequence durationInFrames={SCENES.intro} name="Intro">
@@ -33,7 +39,7 @@ export const IntroVideo: React.FC = () => (
       </Series.Sequence>
       <Series.Sequence durationInFrames={SCENES.game} name="Game">
         <Scene>
-          <GameScene />
+          {markers ? <GameScene recording={markers.math} /> : <div>No recording yet: run gameplay/record.mjs.</div>}
         </Scene>
       </Series.Sequence>
       <Series.Sequence durationInFrames={SCENES.security} name="Security">

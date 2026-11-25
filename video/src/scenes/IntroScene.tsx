@@ -21,7 +21,7 @@ export const IntroScene: React.FC = () => {
 
       <AbsoluteFill style={{ justifyContent: "center", padding: 80 }}>
         <div style={{ fontSize: 34, fontWeight: 700, color: colors.blue, letterSpacing: 2, opacity: kicker }}>
-          MATH TRAIL
+          REGNESTIEN
         </div>
         <div
           style={{
@@ -33,7 +33,7 @@ export const IntroScene: React.FC = () => {
             transform: `translateY(${interpolate(line1, [0, 1], [30, 0])}px)`,
           }}
         >
-          A math game for children aged 8–12
+          A math and spelling game for children aged 8–12
         </div>
         <div
           style={{
