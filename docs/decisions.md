@@ -142,7 +142,8 @@ and also exports the GIF in the README.
 shows the old quiz screen and is 40 seconds; the post needs a short clip of the game as it is now.
 - Real gameplay, not a recreation: `video/gameplay/record.mjs` plays a scripted round in Chrome
   with Playwright (fixed random seed, one wrong answer on purpose, three Dansk picks), and
-  `GameplayVideo` in Remotion cuts six clips beside a phone frame, with English captions and an outro.
+  `GameplayVideo` in Remotion cuts six clips beside a phone frame, with captions and an outro.
+- All text in the video is Danish (changed 2026-11-25), like the game it shows.
 - Supabase calls are answered inside the browser during the recording, so it adds no events to bronze.
 - Frames come from Chrome's screencast with their own timestamps, at 2x zoom. Playwright's built-in
   video was tried first: it ignored the 2x scale and stretched time during animations, so the

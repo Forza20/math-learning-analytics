@@ -17,7 +17,7 @@ It plays without sound: captions carry the story.
 ## Gameplay video (20 s)
 
 `GameplayVideo` is a 20-second square video for LinkedIn, cut from real screen
-recordings of the game, with captions beside a phone frame and the game's own
+recordings of the game, with Danish captions beside a phone frame and the game's own
 music and sound effects.
 
 1. `gameplay/record.mjs` plays a scripted Matematik round (one wrong answer on
