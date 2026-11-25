@@ -3,8 +3,9 @@
 // Plays two scripted rounds in Chrome and saves every screen frame with its time:
 //   public/gameplay/math/<n>.jpg    a full Matematik round (one wrong answer) and the end screen
 //   public/gameplay/danish/<n>.jpg  the first spelling picks of a Dansk round
-//   public/gameplay/markers.json    per round: when each moment happens and when each frame was
-//                                   painted, both in ms from the first frame
+//   public/gameplay/markers.json    per round: when each moment happens, when each game sound
+//                                   played and when each frame was painted, in ms from the first frame
+//   public/gameplay/sfx/<name>.wav  the game's sounds, made offline by the game's own sound.js
 // src/GameplayVideo.tsx cuts the clips from these markers.
 // Frames come from Chrome's screencast with their own timestamps. Playwright's
 // built-in video was tried first, but it stretches time during animations, so
@@ -97,8 +98,9 @@ async function newRecording(browser, name) {
   return { context, page, cdp, frames, writes, marks, mark };
 }
 
-// Stops the screencast; returns marks and frame times in ms from the first frame.
-async function save({ context, cdp, frames, writes, marks }) {
+// Stops the screencast; returns marks, sounds and frame times in ms from the first frame.
+async function save({ context, page, cdp, frames, writes, marks }) {
+  const sounds = await page.evaluate(() => window.__sounds);
   await cdp.send("Page.stopScreencast");
   await Promise.all(writes);
   await context.close();
@@ -106,6 +108,7 @@ async function save({ context, cdp, frames, writes, marks }) {
   const rel = (t) => Math.round(t - t0);
   return {
     marks: Object.fromEntries(Object.entries(marks).map(([k, t]) => [k, rel(t)])),
+    sounds: sounds.map(([name, t]) => [name, rel(t)]),
     frames: frames.map(rel),
   };
 }
@@ -121,6 +124,14 @@ const goBanner = (page) =>
 
 async function openGame(page, subjectLabel, levelLabel, mark) {
   await page.goto(GAME_URL, { waitUntil: "load" });
+  // Log when the game plays each sound, so the video can play it at the same moment.
+  await page.evaluate(() => {
+    window.__sounds = [];
+    for (const name of ["startMusic", "stopMusic", "correct", "wrong", "next", "goal"]) {
+      const play = Sound[name];
+      Sound[name] = (...args) => { window.__sounds.push([name, Date.now()]); return play(...args); };
+    }
+  });
   await sleep(900);
   mark("open");
   await tap(page, `#topics .choice:has-text("${subjectLabel}")`);
@@ -181,13 +192,79 @@ async function recordDanish(browser) {
   return save(rec);
 }
 
+// Renders the game's music loop and effects to WAV with the game's own sound.js,
+// in an OfflineAudioContext. sound.js runs with stand-ins for the browser APIs it
+// uses: the audio context is offline, and the music timer is driven by hand.
+async function renderSounds(browser) {
+  const page = await browser.newPage();
+  await page.goto(GAME_URL, { waitUntil: "load" });
+  const wavs = await page.evaluate(async () => {
+    const src = await (await fetch("sound.js")).text();
+    const RATE = 44100;
+
+    function toWav(buffer) {
+      const data = buffer.getChannelData(0);
+      const bytes = new ArrayBuffer(44 + data.length * 2);
+      const v = new DataView(bytes);
+      const text = (at, s) => [...s].forEach((c, i) => v.setUint8(at + i, c.charCodeAt(0)));
+      text(0, "RIFF"); v.setUint32(4, 36 + data.length * 2, true); text(8, "WAVE");
+      text(12, "fmt "); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+      v.setUint32(24, RATE, true); v.setUint32(28, RATE * 2, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true);
+      text(36, "data"); v.setUint32(40, data.length * 2, true);
+      data.forEach((x, i) => v.setInt16(44 + i * 2, Math.max(-1, Math.min(1, x)) * 32767, true));
+      const u8 = new Uint8Array(bytes);
+      let bin = "";
+      for (let i = 0; i < u8.length; i += 0x8000) bin += String.fromCharCode(...u8.subarray(i, i + 0x8000));
+      return btoa(bin);
+    }
+
+    async function render(seconds, play) {
+      let ctx = null;
+      let now = 0;
+      let timer = null;
+      class Offline extends OfflineAudioContext {
+        constructor() { super(1, Math.round(seconds * RATE), RATE); ctx = this; }
+        get currentTime() { return now; }
+        resume() { return Promise.resolve(); }
+      }
+      const Sound = new Function("window", "document", "localStorage", "setInterval", "clearInterval", "setTimeout",
+        src + ";\nreturn Sound;")(
+        { AudioContext: Offline },
+        { addEventListener() {} },
+        { getItem: () => "0", setItem() {} },
+        (fn) => { timer = fn; return 1; },
+        () => {},
+        () => {},
+      );
+      play(Sound);
+      while (timer && now < seconds) { now += 0.025; timer(); } // the music's 25 ms timer
+      now = 0;
+      return toWav(await ctx.startRendering());
+    }
+
+    return {
+      music: await render(6.4, (S) => S.startMusic()), // one 4-bar loop at 150 BPM
+      correct: await render(1, (S) => S.correct()),
+      wrong: await render(1, (S) => S.wrong()),
+      next: await render(0.5, (S) => S.next()),
+      goal: await render(2.5, (S) => S.goal()),
+    };
+  });
+  await page.close();
+  await mkdir(`${OUT}/sfx`, { recursive: true });
+  for (const [name, b64] of Object.entries(wavs)) {
+    await writeFile(`${OUT}/sfx/${name}.wav`, Buffer.from(b64, "base64"));
+  }
+}
+
 const browser = await chromium.launch({ channel: process.env.CHROME_CHANNEL ?? "chrome" });
 try {
   await mkdir(OUT, { recursive: true });
   const markers = { math: await recordMath(browser), danish: await recordDanish(browser) };
   await writeFile(`${OUT}/markers.json`, JSON.stringify(markers, null, 2) + "\n");
+  await renderSounds(browser);
   for (const [name, r] of Object.entries(markers)) {
-    console.log(name, r.frames.length, "frames", JSON.stringify(r.marks));
+    console.log(name, r.frames.length, "frames", JSON.stringify(r.marks), JSON.stringify(r.sounds));
   }
 } finally {
   await browser.close();

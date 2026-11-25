@@ -147,7 +147,11 @@ shows the old quiz screen and is 40 seconds; the post needs a short clip of the 
 - Frames come from Chrome's screencast with their own timestamps, at 2x zoom. Playwright's built-in
   video was tried first: it ignored the 2x scale and stretched time during animations, so the
   clips drifted by up to 2.5 seconds.
-- Sped-up clips (1.2–1.5×) carry a visible speed label. Silent, like the introduction video.
+- Sped-up clips (1.2–1.5×) carry a visible speed label.
+- Sound: the game's own music and effects. The recorder logs when the game plays each sound,
+  and renders the sounds to WAV with the game's `sound.js` in an OfflineAudioContext (a screen
+  recording has no audio). Effects play at normal speed where the game played them, also in
+  sped-up clips, so they are never pitch-shifted.
 - Rendered by the `gameplay` job in the `video` workflow, for the same disk-space reason as above.
 
 ## Out of scope for v1

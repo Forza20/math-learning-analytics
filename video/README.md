@@ -17,11 +17,13 @@ It plays without sound: captions carry the story.
 ## Gameplay video (20 s)
 
 `GameplayVideo` is a 20-second square video for LinkedIn, cut from real screen
-recordings of the game, with captions beside a phone frame.
+recordings of the game, with captions beside a phone frame and the game's own
+music and sound effects.
 
 1. `gameplay/record.mjs` plays a scripted Matematik round (one wrong answer on
    purpose) and three Dansk picks in Chrome with Playwright, with a fixed random
-   seed. It saves every screen frame with its time, plus `markers.json`, to
+   seed. It saves every screen frame with its time, `markers.json` (including when
+   each sound played), and the game's sounds as WAV (made with `game/sound.js`) to
    `public/gameplay/`. Supabase calls are answered inside the browser, so no events
    reach bronze.
 2. `src/GameplayVideo.tsx` cuts six clips from those markers and adds an outro.

@@ -1,6 +1,7 @@
 import React from "react";
 import {
   AbsoluteFill,
+  Audio,
   CalculateMetadataFunction,
   Img,
   interpolate,
@@ -14,13 +15,15 @@ import { fontFamily } from "./theme";
 
 // A 20-second gameplay video for LinkedIn, cut from real screen recordings of the
 // game (gameplay/record.mjs). The phone on the right plays the clips; the captions
-// on the left say what is happening. Silent: LinkedIn plays videos muted.
+// on the left say what is happening. The sound is the game's own music and effects,
+// each effect played at normal speed at the moment the game played it.
 
 export const GAMEPLAY_FPS = 30;
 
-// Written by gameplay/record.mjs. Per round: when each moment happened and when
-// each frame (public/gameplay/<round>/<n>.jpg) was painted, in ms from the first frame.
-type Recording = { marks: Record<string, number>; frames: number[] };
+// Written by gameplay/record.mjs. Per round: when each moment happened, when each
+// game sound played, and when each frame (public/gameplay/<round>/<n>.jpg) was
+// painted, in ms from the first frame.
+type Recording = { marks: Record<string, number>; sounds: [string, number][]; frames: number[] };
 export type Markers = { math: Recording; danish: Recording };
 export type GameplayProps = { markers: Markers | null };
 
@@ -233,6 +236,51 @@ const Outro: React.FC = () => {
   );
 };
 
+// Where each game sound lands in the video: the frame in the clip where the game played it.
+const EFFECTS = ["correct", "wrong", "next", "goal"];
+function soundsInVideo(markers: Markers) {
+  const out: { name: string; frame: number }[] = [];
+  let clipStart = 0;
+  for (const clip of CLIPS) {
+    const from = clip.from(markers);
+    const rate = rateOf(clip, markers);
+    for (const [name, ms] of markers[clip.src].sounds) {
+      const frame = Math.floor(((ms - from) / rate / 1000) * GAMEPLAY_FPS);
+      if (frame >= 0 && frame < clip.frames) out.push({ name, frame: clipStart + frame });
+    }
+    clipStart += clip.frames;
+  }
+  return out;
+}
+
+const fade = (frame: number, length: number, fadeFrames: number) =>
+  Math.min(1, frame / fadeFrames, (length - frame) / fadeFrames);
+
+const Soundtrack: React.FC<{ markers: Markers }> = ({ markers }) => {
+  const sounds = soundsInVideo(markers);
+  const gameplayEnd = CLIPS.reduce((sum, c) => sum + c.frames, 0);
+  // Music from the Start tap until the goal fanfare, as in the game; again under the outro.
+  const musicFrom = sounds.find((s) => s.name === "startMusic")?.frame ?? CLIPS[0].frames;
+  const musicTo = sounds.find((s) => s.name === "goal")?.frame ?? gameplayEnd;
+  return (
+    <>
+      <Sequence name="Music" from={musicFrom} durationInFrames={musicTo - musicFrom}>
+        <Audio src={staticFile("gameplay/sfx/music.wav")} loop volume={(f) => Math.max(0, Math.min(1, (musicTo - musicFrom - f) / 6))} />
+      </Sequence>
+      {sounds
+        .filter((s) => EFFECTS.includes(s.name))
+        .map((s, i) => (
+          <Sequence key={i} name={s.name} from={s.frame}>
+            <Audio src={staticFile(`gameplay/sfx/${s.name}.wav`)} />
+          </Sequence>
+        ))}
+      <Sequence name="Outro music" from={gameplayEnd} durationInFrames={OUTRO_FRAMES}>
+        <Audio src={staticFile("gameplay/sfx/music.wav")} loop volume={(f) => 0.8 * Math.max(0, fade(f, OUTRO_FRAMES, 12))} />
+      </Sequence>
+    </>
+  );
+};
+
 export const GameplayVideo: React.FC<GameplayProps> = ({ markers }) => {
   if (!markers) {
     return (
@@ -247,6 +295,7 @@ export const GameplayVideo: React.FC<GameplayProps> = ({ markers }) => {
       <Sky />
       <Title />
       <Footer />
+      <Soundtrack markers={markers} />
       {CLIPS.map((clip) => {
         const from = start;
         start += clip.frames;
