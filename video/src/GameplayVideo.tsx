@@ -48,7 +48,6 @@ type Clip = {
 };
 
 // 525 frames of gameplay + 75 frames outro = 600 frames = 20 s.
-const CLIPS: Clip[] = [
 // The start clip runs from the first tap to just after Start, whatever that took.
 const START_FROM = (m: Markers) => m.math.marks.tapSubject - 300;
 const CLIPS: Clip[] = [
