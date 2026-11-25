@@ -35,7 +35,7 @@ jobs:
           done
       - name: Render video
         run: npx remotion render IntroVideo out/intro.mp4 --crf=20
-      - name: Render README GIF (game scene, half size, 15 fps)
+      - name: Render GIF of the game scene (half size, 15 fps)
         run: npx remotion render IntroVideo out/game.gif --codec=gif --frames=120-329 --scale=0.5 --every-nth-frame=2
       - uses: actions/upload-artifact@v4
         with:
