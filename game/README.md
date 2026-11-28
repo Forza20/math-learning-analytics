@@ -12,8 +12,8 @@ The 🔊 button on the course turns sound off; the choice is kept on the device.
     Each answer is still logged with its own `topic`, so bronze and dbt are unchanged.
     Note: `silver.sessions` takes a session's topic from its first answer.
   - **Dansk**: spelling. Each obstacle shows three spellings of a word, one right and two typical
-    misspellings, and the player taps the right one (keys 1–3 also work). 60 words in `WORDS`,
-    20 per level, chosen from words mellemtrin children often misspell. Each pick is sent as topic `spelling` (see `supabase/migrations/0003_spelling_topic.sql`).
+    misspellings, and the player taps the right one (keys 1–3 also work). 118 words in `WORDS`,
+    20 each in levels 2–3, 78 in level 1 (58 are from the school Diktat lists), chosen from words mellemtrin children often misspell. Each pick is sent as topic `spelling` (see `supabase/migrations/0003_spelling_topic.sql`).
 - After every finished course, the end screen shows a dinosaur holding a pizza and wearing heart
   sunglasses, drawn as inline SVG in code (`dinoSvg()`).
 - Mixed puzzles (`MIXED` in `index.html`, mirrored in `simulator/questions.py`) has five task types:

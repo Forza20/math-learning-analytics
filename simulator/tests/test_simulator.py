@@ -186,7 +186,7 @@ GIVEN_RE = r"[a-zæøåé]{1,20}"      # bronze check on a picked spelling
 
 def test_spelling_words_fit_db_constraints():
     for level in LEVELS:
-        assert len(SPELLING_WORDS[level]) == 20
+        assert len(SPELLING_WORDS[level]) >= 20
         for entry in SPELLING_WORDS[level]:
             assert len(entry) == 3 and len(set(entry)) == 3, entry
             assert re.fullmatch(WORD_RE, entry[0])
